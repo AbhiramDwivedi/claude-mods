@@ -1,0 +1,26 @@
+{
+  "name": "session-models",
+  "version": "0.3.0",
+  "description": "Shows the main model, how many agents use each model (and how many are live), and warns about agent crowds and huge contexts",
+  "types": "./types/index.d.ts",
+  "author": {
+    "name": "Abhiram Dwivedi",
+    "url": "https://github.com/AbhiramDwivedi"
+  },
+  "homepage": "https://github.com/AbhiramDwivedi/claude-mods/tree/main/plugins/session-models",
+  "license": "MIT",
+  "userConfig": {
+    "liveAgentsWarn": {
+      "type": "number",
+      "title": "Warn at live agents",
+      "description": "Flag the session, and toast once, when this many agents (the main thread included) are running at the same time.",
+      "default": 6
+    },
+    "contextWarnK": {
+      "type": "number",
+      "title": "Warn at context (thousand tokens)",
+      "description": "Flag any live agent whose requests carry at least this many thousand tokens of context, which it re-reads on every request.",
+      "default": 300
+    }
+  }
+}

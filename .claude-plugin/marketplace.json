@@ -1,0 +1,20 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "claude-mods",
+  "description": "Claude Code mods for keeping an eye on usage limits and which models your agents run on",
+  "owner": { "name": "Abhiram Dwivedi", "url": "https://github.com/AbhiramDwivedi" },
+  "plugins": [
+    {
+      "name": "usage-limits",
+      "description": "Keeps the 5-hour and weekly limit windows, reset countdowns, context fill and session cost pinned under the prompt",
+      "source": "./plugins/usage-limits",
+      "category": "productivity"
+    },
+    {
+      "name": "session-models",
+      "description": "Shows the main model and how many agents (main thread, subagents, in-process teammates) have used each model",
+      "source": "./plugins/session-models",
+      "category": "productivity"
+    }
+  ]
+}
