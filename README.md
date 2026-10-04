@@ -25,9 +25,9 @@ Nothing on screen changed. The work looked the same as before. About two hours l
 
 I hadn't done anything careless. I said the right thing once, at the start, and it wore off over hours of work and three summaries. Claude can't tell which line in a long conversation I still care about unless something keeps saying it, and I couldn't see the switch, because nothing showed which model each agent was running.
 
-The well-behaved first half cost more than I expected too. Those agents ran a long time; the longest made 673 requests over 13 hours. Every request sends the agent's whole context again, and for 11 of the 42 agents that context passed 500K tokens, peaking near 965K. Most of what the session used was the same context read again and again.
+The first half, the part that followed my instructions, cost more than everything after it. When I asked for subagents I pictured small jobs: a narrow task, a small context, done in minutes. The session gave each agent a whole feature to build. The longest made 673 requests over 13 hours. Every request sends the agent's whole context again, and for 11 of the 42 agents that context passed 500K tokens, peaking near 965K. Most of what the session used was the same context read again and again. I never said how small I meant, and nothing showed me how big they had grown.
 
-Accidents like this happen to careful people. These mods work like the sign before a sharp bend: they don't drive for you, they just tell you what's coming while you can still slow down. With them, a line like `agents: Fable (6, 5 live), Opus (27), Sonnet (1)` would have appeared the minute the switch happened, and the usage line would have shown the 5-hour window climbing and a run-out time well before the wall.
+Accidents like this happen to careful people. These mods work like the sign before a sharp bend: they don't drive for you, they just tell you what's coming while you can still slow down. With them, a line like `agents: Fable (6, 5 live), Opus (27), Sonnet (1)` would have appeared the minute the switch happened. Hours earlier, `⚠ ctx 965K` would have flagged the first agent that outgrew the job I had in mind. The usage line would have shown the 5-hour window climbing and a run-out time well before the wall.
 
 ## Install
 
