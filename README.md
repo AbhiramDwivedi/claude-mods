@@ -13,21 +13,26 @@ model: Opus · agents: Opus (14, 13 live), Sonnet (2) · ⚠ 14 live · ⚠ ctx 
 
 [`session-models`](plugins/session-models) tracks the agents in your session: which models they run on, how many are running right now, and how much context each one sends with every request.
 
-## Why I wrote these
+## Why these exist
 
-I kept running out of limits on a top-tier plan and couldn't see why. When I dug into the transcripts, one session explained most of it, and it wasn't a session where I'd been sloppy.
+I built these after a long session burned through my limits while everything on screen looked fine. I had done what the guides say: hand big work to subagents and pick the right model for each. It still got away from me. Here's how that happens.
 
-My global CLAUDE.md tells Claude to hand complex work to subagents. For this job I asked for teams of agents to implement, review and test, and my prompt said to use Opus or Sonnet for them as the work required. I put the main thread on Fable, the most capable and most expensive model, to plan and coordinate while cheaper models did the work. For the first several hours that's what happened. The session started 13 agents in the first hour, and every one had a model picked for its job.
+You start a big job. You tell Claude to split it across subagents, Opus for the hard parts and Sonnet for the rest, and you put a strong model in charge. It goes well. Agents start, finish and report back.
 
-The job ran long, and the conversation was compacted three times. A compaction replaces the conversation with a summary of it. The session kept delegating, as CLAUDE.md said to, but it stopped naming a model when it started an agent. An agent with no model runs on the main thread's model. Mine was Fable, so every new agent ran on Fable too. By the third summary, my line about Opus and Sonnet was gone.
+Hours later the conversation has been compacted a few times. Somewhere in a summary, "Opus for the hard parts" became "use agents." New agents start without a model, so they run on whatever the main thread runs on. One agent's job grows from a fix into a whole feature, and every request it makes sends half a million tokens of context. Nothing on screen changes. The main thread looks calm because it is calm. The spending is happening where you aren't looking.
 
-Nothing on screen changed. The work looked the same as before. About two hours later I noticed how fast my usage was climbing and asked whether it was still using Opus and Sonnet agents. It said no: it hadn't set a model, so they had all run on Fable. Two minutes after that I hit the limit.
+You find out when you hit the wall.
 
-I hadn't done anything careless. I said the right thing once, at the start, and it wore off over hours of work and three summaries. Claude can't tell which line in a long conversation I still care about unless something keeps saying it, and I couldn't see the switch, because nothing showed which model each agent was running.
+Nobody did anything wrong. Claude followed the instructions it still had, and you gave good ones at the start. Long sessions wear instructions down, and you can't steer by what you can't see.
 
-The first half, the part that followed my instructions, cost more than everything after it. When I asked for subagents I pictured small jobs: a narrow task, a small context, done in minutes. The session gave each agent a whole feature to build. The longest made 673 requests over 13 hours. Every request sends the agent's whole context again, and for 11 of the 42 agents that context passed 500K tokens, peaking near 965K. Most of what the session used was the same context read again and again. I never said how small I meant, and nothing showed me how big they had grown.
+These mods are the sign before the sharp bend. They don't take the wheel. They tell you what's ahead while you can still brake:
 
-Accidents like this happen to careful people. These mods work like the sign before a sharp bend: they don't drive for you, they just tell you what's coming while you can still slow down. With them, a line like `agents: Fable (6, 5 live), Opus (27), Sonnet (1)` would have appeared the minute the switch happened. Hours earlier, `⚠ ctx 965K` would have flagged the first agent that outgrew the job I had in mind. The usage line would have shown the 5-hour window climbing and a run-out time well before the wall.
+```
+⚠ 5h 41% +38%/h out in 1h33m · 7d 18% +6%/d (resets 4d2h) · ctx 22% · $14.10
+model: Fable · agents: Fable (6, 5 live), Opus (27), Sonnet (1) · ⚠ ctx 645K
+```
+
+Your agents have drifted onto your most expensive model, one of them is carrying a huge context, and at this pace the 5-hour window runs out in an hour and a half. You'd see all of that hours before the wall, while it's still cheap to fix.
 
 ## Install
 
