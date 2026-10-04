@@ -15,9 +15,19 @@ model: Opus · agents: Opus (14, 13 live), Sonnet (2) · ⚠ 14 live · ⚠ ctx 
 
 ## Why I wrote these
 
-I kept running out of limits on a top-tier plan and couldn't see why. When I dug into the transcripts, one session explained most of it. A single prompt started 42 background subagents, 13 of them in the first hour. Each subagent sent between 800K and 950K tokens of context with every request, and the longest-running ones made about 700 requests over 9 to 13 hours. More than 96% of the tokens were the same context read back again. The main thread, the part I was watching, accounted for less than a tenth of it.
+I kept running out of limits on a top-tier plan and couldn't see why. When I dug into the transcripts, one session explained most of it, and it wasn't a session where I'd been sloppy.
 
-Nothing in the conversation looked wrong. With these mods the problem shows up within the hour: the burn rate jumps, a run-out time appears, and the agent count and context size turn into warnings.
+My global CLAUDE.md tells Claude to hand complex work to subagents. For this job I asked for teams of agents to implement, review and test, and my prompt said to use Opus or Sonnet for them as the work required. I put the main thread on Fable, the most capable and most expensive model, to plan and coordinate while cheaper models did the work. For the first several hours that's what happened. The session started 13 agents in the first hour, and every one had a model picked for its job.
+
+The job ran long, and the conversation was compacted three times. A compaction replaces the conversation with a summary of it. The session kept delegating, as CLAUDE.md said to, but it stopped naming a model when it started an agent. An agent with no model runs on the main thread's model. Mine was Fable, so every new agent ran on Fable too. By the third summary, my line about Opus and Sonnet was gone.
+
+Nothing on screen changed. The work looked the same as before. About two hours later I noticed how fast my usage was climbing and asked whether it was still using Opus and Sonnet agents. It said no: it hadn't set a model, so they had all run on Fable. Two minutes after that I hit the limit.
+
+I hadn't done anything careless. I said the right thing once, at the start, and it wore off over hours of work and three summaries. Claude can't tell which line in a long conversation I still care about unless something keeps saying it, and I couldn't see the switch, because nothing showed which model each agent was running.
+
+The well-behaved first half cost more than I expected too. Those agents ran a long time; the longest made 673 requests over 13 hours. Every request sends the agent's whole context again, and for 11 of the 42 agents that context passed 500K tokens, peaking near 965K. Most of what the session used was the same context read again and again.
+
+Accidents like this happen to careful people. These mods work like the sign before a sharp bend: they don't drive for you, they just tell you what's coming while you can still slow down. With them, a line like `agents: Fable (6, 5 live), Opus (27), Sonnet (1)` would have appeared the minute the switch happened, and the usage line would have shown the 5-hour window climbing and a run-out time well before the wall.
 
 ## Install
 
@@ -60,7 +70,7 @@ Claude Code also has a built-in mod worth turning on alongside these. "You shoul
 
 `model: Opus` is the main thread's model. Until a subagent runs, that's all the line shows.
 
-`agents: Opus (14, 13 live), Sonnet (2)` counts every agent the session has run, by model: the main thread, subagents and teammates that run inside the session. Fourteen have used Opus and 13 of those are running now. An agent that switched models counts under each.
+`agents: Opus (14, 13 live), Sonnet (2)` counts every agent the session has run, by model: the main thread, subagents and teammates that run inside the session. Fourteen have used Opus and 13 of those are running now. An agent that switched models counts under each. An agent started without a model runs on the main thread's model, so if your main thread's model shows up here when you meant the work to go to cheaper ones, that's the sign.
 
 `⚠ 14 live` appears while at least `liveAgentsWarn` agents are running. The toast fires once. It fires again only after the count drops 2 below the threshold, and never twice within 10 minutes.
 
