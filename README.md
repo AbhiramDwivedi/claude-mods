@@ -48,6 +48,8 @@ You need Claude Code 2.1.287 or newer, the first release with mods. The mod API 
 
 The mods load when your next session starts.
 
+`/plugin install` installs for your user by default, so a mod runs in every project. Keep it that way for usage-limits and session-models. Your limits are shared by every session you run, and the session burning through them may be in a project you didn't think to set up. pit-stop changes what agents do, so you may prefer `claude plugin install pit-stop@claude-mods --scope project` in the projects you want it in.
+
 Each threshold appears as a row in `/config`. You can also set it under `pluginConfigs` in `~/.claude/settings.json`.
 
 | Mod | Setting | Default | What it does |
@@ -95,7 +97,11 @@ Every subagent's brief gets a context budget added to the end. It asks the agent
 
 When a subagent's requests carry `nudgeAtK` thousand tokens of context, its next tool result comes with a note asking it to finish its current item and checkpoint. Past `stopAtK`, it gets 8 more tool calls to commit and write its note, and then every tool call is refused. Its final report starts with `CHECKPOINT:`, which tells the main agent to start a fresh agent from the note rather than resume the old one. A toast tells you each time.
 
-The defaults come from replaying 26 subagents from one long session against different limits. A fresh agent there started near 47K tokens of context and typically read about 200K more before its first edit. Even one that started from a good handoff note read 117K. Low limits therefore cause so many handoffs that they cost more than they save: at 200K the replay used 14% more tokens and took 70% longer. Around 300K it used about a quarter fewer tokens and ran slightly slower. Briefs that cut what a fresh agent reads before it starts work are worth more than any limit. If a fresh agent needed only 40K tokens to get going, a 200K limit would save about half.
+The defaults come from two analyses. One replayed 32 subagents from a long session against different limits, pricing every request at API rates. That includes re-writing an agent's whole context into the cache after it sits idle for more than five minutes, which was about a quarter of the cost. The other measured 938 subagents from a month of sessions on another machine. Both put the best limit at about twice the context an agent carries when it makes its first edit.
+
+A fresh agent starts with 35K to 45K tokens of context. One briefed with a single phase of work read about 117K more before its first edit. For those agents the best limit was 300K to 350K, which cost about a fifth less than no limit. Lower limits backfire, because every agent cut off has to pay that startup again. At 200K the replay cost about a third more than no limit. At 250K it saved half as much as at 300K and ran 26% slower, against 13% at 300K. Agents briefed with a whole feature read about 220K before their first edit, and for them every limit up to 400K cost more than no limit.
+
+Most agents never reach the limits. On the second machine the median agent peaked at 119K, and nearly all the saving came from a few runaway sessions. Briefs matter more than the limit. Most of what an agent reads before its first edit is command output, such as `cat`, `grep` and test runs, so a brief that names the exact files and line ranges pays off. Cutting the reading before the first edit from 135K to 100K more than doubled the saving at 300K. For a small fix, or edits where each step depends on the last, skip the subagent: the main thread already has the context.
 
 ## Limitations
 
@@ -128,6 +134,8 @@ Or list them in the `env` block of `~/.claude/settings.json`. Separate the paths
 ```
 
 An interactive session watches those folders and reloads a mod when you save a file.
+
+Load each mod one way only. If it is in `CLAUDE_CODE_PLUGIN_DIRS` and also installed from the marketplace, it runs twice, with two status lines and every toast doubled. `claude plugin list` shows both copies.
 
 Before you commit:
 
