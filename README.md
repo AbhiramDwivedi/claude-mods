@@ -137,6 +137,8 @@ An interactive session watches those folders and reloads a mod when you save a f
 
 Load each mod one way only. If it is in `CLAUDE_CODE_PLUGIN_DIRS` and also installed from the marketplace, it runs twice, with two status lines and every toast doubled. `claude plugin list` shows both copies.
 
+[`tools/ctx-study`](tools/ctx-study) reads your local session transcripts and reports how large your subagents grow, how much of the cost comes above pit-stop's limits, and whether its handoffs pay off. Run it weekly to check the limits still suit how you work.
+
 Before you commit:
 
 ```
