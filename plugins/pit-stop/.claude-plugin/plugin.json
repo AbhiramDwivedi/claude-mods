@@ -1,0 +1,25 @@
+{
+  "name": "pit-stop",
+  "version": "0.1.0",
+  "description": "Keeps subagents small: tells the main agent how to size and split work, asks a growing subagent to checkpoint, and refuses its tools past a hard limit so a fresh agent takes over",
+  "author": {
+    "name": "Abhiram Dwivedi",
+    "url": "https://github.com/AbhiramDwivedi"
+  },
+  "homepage": "https://github.com/AbhiramDwivedi/claude-mods/tree/main/plugins/pit-stop",
+  "license": "MIT",
+  "userConfig": {
+    "nudgeAtK": {
+      "type": "number",
+      "title": "Ask to checkpoint at (thousand tokens)",
+      "description": "When a subagent's requests carry this much context, ask it to finish its current item, write a handoff note and stop.",
+      "default": 300
+    },
+    "stopAtK": {
+      "type": "number",
+      "title": "Refuse tools at (thousand tokens)",
+      "description": "Past this much context a subagent gets a few tool calls to checkpoint, then every tool call is refused. Always at least 50 above the checkpoint setting.",
+      "default": 450
+    }
+  }
+}

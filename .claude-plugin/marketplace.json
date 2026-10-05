@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "claude-mods",
-  "description": "Claude Code mods for keeping an eye on usage limits and which models your agents run on",
+  "description": "Claude Code mods for keeping an eye on usage limits and which models your agents run on, and for keeping subagents small",
   "owner": { "name": "Abhiram Dwivedi", "url": "https://github.com/AbhiramDwivedi" },
   "plugins": [
     {
@@ -14,6 +14,12 @@
       "name": "session-models",
       "description": "Shows the main model and how many agents (main thread, subagents, in-process teammates) have used each model",
       "source": "./plugins/session-models",
+      "category": "productivity"
+    },
+    {
+      "name": "pit-stop",
+      "description": "Tells the main agent how to size and split work, asks a growing subagent to checkpoint, and refuses its tools past a hard limit so a fresh agent takes over",
+      "source": "./plugins/pit-stop",
       "category": "productivity"
     }
   ]
