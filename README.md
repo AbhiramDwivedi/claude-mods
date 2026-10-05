@@ -2,9 +2,9 @@
 
 Three [Claude Code](https://claude.com/claude-code) mods. Two tell you a session is eating your usage limits while you can still stop it, not after you hit the wall. The third keeps subagents from growing large enough to do that.
 
-The first two each add a line under the prompt:
+The first two each add a dim line above the prompt, with only the warnings in color:
 
-![usage-limits: 5h 3% +2%/h (resets 3h9m) · 7d 33% +33%/d out in 2d0h · ctx 22% · $20.43 — session-models: model: Opus · agents: Opus (8, 3 live), Sonnet (2)](assets/mods.png)
+![session-models: model: Opus · agents: Opus (30, 1 live) — usage-limits: 5h 19% +4%/h (resets 1h28m) · ⚠ 7d 50% +21%/d out in 2d9h · ctx 22% · $173.63 · cache drops 1 (160K)](assets/mods.png)
 
 [`usage-limits`](plugins/usage-limits) tracks the 5-hour and weekly windows. It shows how much of each you've used, how fast that number is climbing, and when it will hit 100% if that comes before the reset.
 
@@ -60,6 +60,7 @@ Each threshold appears as a row in `/config`. You can also set it under `pluginC
 | session-models | `contextWarnK` | 300 | Warns when a running agent sends this many thousand tokens of context per request. |
 | pit-stop | `nudgeAtK` | 300 | Asks a subagent to checkpoint when its requests carry this many thousand tokens of context. |
 | pit-stop | `stopAtK` | 450 | Gives a subagent 8 tool calls to checkpoint past this many thousand tokens, then refuses its tools. |
+| pit-stop | `cacheNotes` | on | Tells a subagent when its prompt cache expired during a long pause. The toast to you stays either way. |
 
 Claude Code also has a built-in mod worth turning on alongside these. "You should know" runs a side agent that points out things you or Claude may have missed. Enable it with `/plugin enable cc-plugin-you-should-know@builtin`. It needs a first-party session with telemetry on.
 
@@ -76,6 +77,8 @@ Claude Code also has a built-in mod worth turning on alongside these. "You shoul
 `5h reset` means the last reading's reset time has passed. The next request brings a fresh figure.
 
 `ctx 22%` is how full the main thread's context window is. `$14.10` is the session's cost at API prices, the same figure `/cost` reports.
+
+`cache drops 3 (1.9M)` appears once an agent's prompt cache has expired during a pause of more than 4 minutes and its next request rebuilt at least 100K tokens of context. It counts the main thread and every subagent: three drops so far this session, which re-wrote 1.9M tokens. Subagents keep their cache for 5 minutes unless you set `subagentPromptCacheTtl`, so an agent that waits on a long test run or a sleep loop pays to rebuild its whole context.
 
 ## Reading the agents line
 
@@ -96,6 +99,8 @@ The main agent gets a short section in its system prompt. It says to give each a
 Every subagent's brief gets a context budget added to the end. It asks the agent to read files by line range, keep command output short, and write a handoff note if it is asked to checkpoint.
 
 When a subagent's requests carry `nudgeAtK` thousand tokens of context, its next tool result comes with a note asking it to finish its current item and checkpoint. Past `stopAtK`, it gets 8 more tool calls to commit and write its note, and then every tool call is refused. Its final report starts with `CHECKPOINT:`, which tells the main agent to start a fresh agent from the note rather than resume the old one. A toast tells you each time.
+
+The brief also asks agents to run the narrowest command that proves a change and not to wait in sleep loops. If a subagent's cache still expires while it waits on its own tool call, the mod tells it once how much context it rebuilt and after how long a pause, and suggests checking on long jobs sooner or running something shorter. It gives no fixed polling interval, because whether polling pays depends on your plan and your jobs. Replayed over 945 real subagents, the note would have reached about 4% of agents in normal sessions.
 
 The defaults come from two analyses. One replayed 32 subagents from a long session against different limits, pricing every request at API rates. That includes re-writing an agent's whole context into the cache after it sits idle for more than five minutes, which was about a quarter of the cost. The other measured 938 subagents from a month of sessions on another machine. Both put the best limit at about twice the context an agent carries when it makes its first edit.
 
@@ -135,7 +140,7 @@ Or list them in the `env` block of `~/.claude/settings.json`. Separate the paths
 
 An interactive session watches those folders and reloads a mod when you save a file.
 
-Load each mod one way only. If it is in `CLAUDE_CODE_PLUGIN_DIRS` and also installed from the marketplace, it runs twice, with two status lines and every toast doubled. `claude plugin list` shows both copies.
+Load each mod one way only. If it is in `CLAUDE_CODE_PLUGIN_DIRS` and also installed from the marketplace, it runs twice, with every line and toast doubled. `claude plugin list` shows both copies.
 
 [`tools/ctx-study`](tools/ctx-study) reads your local session transcripts and reports how large your subagents grow, how much of the cost comes above pit-stop's limits, and whether its handoffs pay off. Run it weekly to check the limits still suit how you work.
 
