@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { biggestContext, crowdAlarm, family, formatModels, liveAgents, setting, tokens } from '../hooks/register'
+import { agentLabel, biggestContext, crowdAlarm, family, formatModels, liveAgents, setting, tokens } from '../hooks/register'
 
 const LIMITS = { liveAgents: 6, context: 300_000 }
 const MIN = 60_000
@@ -82,4 +82,10 @@ test('holds settings within bounds', async () => {
   expect(setting(undefined, 6, 2, 100)).toBe(6)
   expect(setting(0, 6, 2, 100)).toBe(2)
   expect(setting('lots', 6, 2, 100)).toBe(6)
+})
+
+test('names an agent by its task in the context toast', async () => {
+  expect(agentLabel('main', undefined)).toBe('The main thread')
+  expect(agentLabel('ae9ca49e548d4f774', 'Builder A: evidence checks')).toBe('Builder A: evidence checks')
+  expect(agentLabel('ae9ca49e548d4f774', undefined)).toBe('Agent ae9ca49e')
 })

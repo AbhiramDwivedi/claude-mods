@@ -1,6 +1,6 @@
 {
   "name": "session-models",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Shows the main model, how many agents use each model (and how many are live), and warns about agent crowds and huge contexts",
   "types": "./types/index.d.ts",
   "author": {

@@ -84,6 +84,12 @@ export function crowdAlarm(crowd: Crowd, live: number, now: number, threshold: n
   return { toast: false, crowd }
 }
 
+// an agent by the task it was given, falling back to its id when it has none
+export function agentLabel(id: string, description: string | undefined): string {
+  if (id === 'main') return 'The main thread'
+  return description !== undefined && description !== '' ? description : `Agent ${id.slice(0, 8)}`
+}
+
 // a configured number, or the default when unset or not a number, held within bounds
 export function setting(value: unknown, fallback: number, min: number, max: number): number {
   const n = Number(value ?? fallback)
@@ -99,7 +105,9 @@ async function refresh($: EngineInterface, limits: Thresholds) {
   const now = await $.clock.now()
   lastRefreshAt = now
   const agents = await read($, agentsSeen)
-  const running = new Set((await $.agent.list()).filter(a => a.status === 'running').map(a => a.id))
+  const listed = await $.agent.list()
+  const running = new Set(listed.filter(a => a.status === 'running').map(a => a.id))
+  const descriptions = new Map(listed.map(a => [a.id, a.description]))
   $.ui.status(formatModels(await $.session.model(), agents, running, limits))
 
   const live = liveAgents(agents, running)
@@ -110,8 +118,7 @@ async function refresh($: EngineInterface, limits: Thresholds) {
     const context = agents[id]?.context ?? 0
     if (context >= limits.context && !flaggedContext.has(id)) {
       flaggedContext.add(id)
-      const who = id === 'main' ? 'The main thread' : `Agent ${id.slice(0, 8)}`
-      $.ui.toast(`${who} is re-reading ${tokens(context)} of context on every request`)
+      $.ui.toast(`${agentLabel(id, descriptions.get(id))} is re-reading ${tokens(context)} of context on every request`)
     }
   }
 }
