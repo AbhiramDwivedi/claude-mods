@@ -1,4 +1,4 @@
-import type { EngineInterface, Register, ToolCallResult } from 'claude-code'
+import type { EngineInterface, Register, ToolCallResult, TurnUsage } from 'claude-code'
 
 // what the mod has seen of one subagent or in-process teammate
 export type Budget = {
@@ -10,7 +10,24 @@ export type Budget = {
   windDownCalls: number
   // its tool calls are being refused
   isRefused: boolean
+  // its previous request, to tell a cache that expired from a first request, a model switch or a compaction
+  last?: Step
+  // a cache drop it has not yet been told about
+  pendingDrop?: Drop
+  // it has been told about a cache drop, and the person has been shown one: each happens once per agent
+  isCacheNoted: boolean
+  isDropToasted: boolean
 }
+
+// what the mod keeps of one request: its turn, when its response arrived, the model that answered, how many
+// messages it carried, and whether the response called tools (so the pause after it was the agent's own wait)
+export type Step = { turnId: string; endedAt: number; model: string; messageCount: number; calledTools: boolean }
+
+// the request being made now, as far as the drop rule reads it
+export type Request = { turnId: string; startedAt: number; messageCount: number }
+
+// a request that re-wrote most of a large context to the prompt cache after a long pause
+export type Drop = { rebuilt: number; pauseMs: number }
 
 export type Limits = { nudge: number; stop: number }
 
@@ -33,6 +50,7 @@ export const CONTRACT = `${CONTRACT_HEAD} Every request you make re-sends your w
 - Read files by line range (grep -n first, then read only the lines you need), not whole.
 - Keep command and test output short. Send long output to a file and read only the summary lines.
 - Stay inside the scope above. If the job is bigger than the brief suggests, say so in your report rather than expanding it.
+- Run the narrowest command that proves your change, and don't wait in sleep loops: a long pause between your requests lets the prompt cache expire, and your next request pays to rebuild your whole context.
 If you are asked to checkpoint, finish or back out the change in progress, commit if you work in git, and write a handoff note. The note says what is done and verified, what is left as a numbered list naming files and functions, any traps you found, and exactly which files and line ranges the next agent should read first. Put the note where your brief says, or in your final report if the brief names no place. Start your final report with "CHECKPOINT:" so whoever started you knows the work is unfinished.`
 
 // 955492 -> 955K, 1200000 -> 1.2M
@@ -54,7 +72,38 @@ export function limitsFrom(options: { nudgeAtK?: unknown; stopAtK?: unknown }): 
 }
 
 export function fresh(): Budget {
-  return { context: 0, isNudged: false, windDownCalls: 0, isRefused: false }
+  return { context: 0, isNudged: false, windDownCalls: 0, isRefused: false, isCacheNoted: false, isDropToasted: false }
+}
+
+// A cache drop worth mentioning. A subagent's prompt cache lives 5 minutes unless the person set it longer, so a
+// pause under 4 minutes (measured from the previous response, a little after the cache was last used) cannot have
+// expired it; a rebuild under 100K costs too little to talk about; and a request that wrote less than half its
+// context had most of it served from the cache.
+export const DROP = { minContext: 100_000, minShare: 0.5, minPauseMs: 4 * 60_000 }
+
+// The drop this request shows, if any. Only a pause the agent spent waiting on its own tool call, in the same run,
+// counts: an agent resumed after it finished did not choose its pause. Not an agent's first request, not one
+// after a model switch (a new model has no cache), and not one after a compaction (fewer messages, a new prefix).
+export function cacheDrop(last: Step | undefined, request: Request, usage: TurnUsage): Drop | undefined {
+  if (last === undefined || !last.calledTools || last.turnId !== request.turnId) return undefined
+  if (usage.model !== last.model || request.messageCount < last.messageCount) return undefined
+  const context = usage.input_tokens + usage.cache_read_input_tokens + usage.cache_creation_input_tokens
+  const rebuilt = usage.cache_creation_input_tokens
+  const pauseMs = request.startedAt - last.endedAt
+  if (context < DROP.minContext || rebuilt < context * DROP.minShare || pauseMs <= DROP.minPauseMs) return undefined
+  return { rebuilt, pauseMs }
+}
+
+export function minutes(ms: number): number {
+  return Math.round(ms / 60_000)
+}
+
+export function cacheNote(drop: Drop): string {
+  return `${MARK} Your last request rebuilt ${tokens(drop.rebuilt)} tokens of context because the prompt cache expired during a ${minutes(drop.pauseMs)}-minute pause. If you need to wait on a long job again, check on it before it runs that long, or run something shorter.`
+}
+
+export function dropToast(name: string, drop: Drop): string {
+  return `${name} rebuilt ${tokens(drop.rebuilt)} of context: its prompt cache expired during a ${minutes(drop.pauseMs)}-minute pause`
 }
 
 // past the stop limit an agent keeps a few calls to checkpoint, then everything is refused;
@@ -115,6 +164,8 @@ async function label($: EngineInterface, id: string): Promise<string> {
 
 export const register: Register = (on, options) => {
   const limits = limitsFrom(options)
+  // off: an agent whose cache expired is not told; the person still gets the toast
+  const cacheNotes = options.cacheNotes !== false
   // module state: a reload starts these over, so a nudge may repeat once after one
   const budgets = new Map<string, Budget>()
   // forks inherit the parent's context and its prompt cache: never limited
@@ -145,12 +196,31 @@ export const register: Register = (on, options) => {
 
   // every model request of a subagent or an in-process teammate; the main thread is never limited
   on('turn.step', async function* ($, e, next) {
-    const result = yield* next(e)
     const id = e.agentId
-    if (id === undefined || forks.has(id) || result.usage === null) return result
+    if (id === undefined || forks.has(id)) return yield* next(e)
+    const startedAt = await $.clock.now()
+    const result = yield* next(e)
+    if (result.usage === null) return result
     const usage = result.usage
     const context = usage.input_tokens + usage.cache_read_input_tokens + usage.cache_creation_input_tokens
-    budgets.set(id, { ...(budgets.get(id) ?? fresh()), context })
+    const budget = budgets.get(id) ?? fresh()
+    budgets.set(id, budget)
+    const drop = cacheDrop(budget.last, { turnId: e.turnId, startedAt, messageCount: e.messageCount }, usage)
+    budget.context = context
+    budget.last = {
+      turnId: e.turnId,
+      endedAt: await $.clock.now(),
+      model: usage.model,
+      messageCount: e.messageCount,
+      calledTools: result.toolUses.length > 0,
+    }
+    if (drop !== undefined) {
+      if (cacheNotes && !budget.isCacheNoted) budget.pendingDrop = drop
+      if (!budget.isDropToasted) {
+        budget.isDropToasted = true
+        $.ui.toast(dropToast(await label($, id), drop))
+      }
+    }
     return result
   })
 
@@ -158,14 +228,25 @@ export const register: Register = (on, options) => {
     const id = e.agentId
     const budget = id === undefined ? undefined : budgets.get(id)
     if (id === undefined || budget === undefined) return next(e)
+    // taken before any await, so of calls made in parallel only the first carries it
+    const drop = budget.pendingDrop
+    if (drop !== undefined) {
+      budget.pendingDrop = undefined
+      budget.isCacheNoted = true
+    }
+    // the tool's result, with the cache note when one is due
+    const ran = async () => {
+      const result = await next(e)
+      return drop === undefined ? result : withNote(result, cacheNote(drop))
+    }
     const decided = verdict(budget, limits)
     switch (decided.kind) {
       case 'run':
-        return next(e)
+        return ran()
       case 'nudge': {
         budget.isNudged = true
         $.ui.toast(`Asked ${await label($, id)} to checkpoint at ${tokens(budget.context)} of context`)
-        return withNote(await next(e), nudgeNote(budget.context, limits))
+        return withNote(await ran(), nudgeNote(budget.context, limits))
       }
       case 'wind-down': {
         // counted before any await, so calls made in parallel each see the ones before them
@@ -173,7 +254,7 @@ export const register: Register = (on, options) => {
         if (budget.windDownCalls === 1) {
           $.ui.toast(`${await label($, id)} passed ${tokens(limits.stop)}: ${WIND_DOWN_CALLS} tool calls left to checkpoint`)
         }
-        return withNote(await next(e), windDownNote(budget.context, decided.left, limits))
+        return withNote(await ran(), windDownNote(budget.context, decided.left, limits))
       }
       case 'refuse': {
         if (!budget.isRefused) {

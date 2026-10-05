@@ -1,6 +1,6 @@
 {
   "name": "pit-stop",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Keeps subagents small: tells the main agent how to size and split work, asks a growing subagent to checkpoint, and refuses its tools past a hard limit so a fresh agent takes over",
   "author": {
     "name": "Abhiram Dwivedi",
@@ -20,6 +20,12 @@
       "title": "Refuse tools at (thousand tokens)",
       "description": "Past this much context a subagent gets a few tool calls to checkpoint, then every tool call is refused. Always at least 50 above the checkpoint setting.",
       "default": 450
+    },
+    "cacheNotes": {
+      "type": "boolean",
+      "title": "Tell agents when their prompt cache expired",
+      "description": "When a subagent's request rebuilds a large context because its prompt cache expired during a long pause, tell that agent once, with the measured numbers. Off: only you get the toast.",
+      "default": true
     }
   }
 }
