@@ -4,10 +4,7 @@ Three [Claude Code](https://claude.com/claude-code) mods. Two tell you a session
 
 The first two each add a line under the prompt:
 
-```
-⚠ 5h 41% +38%/h out in 1h33m · 7d 18% +6%/d (resets 4d2h) · ctx 22% · $14.10
-model: Opus · agents: Opus (14, 13 live), Sonnet (2) · ⚠ 14 live · ⚠ ctx 910K
-```
+![usage-limits: 5h 3% +2%/h (resets 3h9m) · 7d 33% +33%/d out in 2d0h · ctx 22% · $20.43 — session-models: model: Opus · agents: Opus (8, 3 live), Sonnet (2)](assets/mods.png)
 
 [`usage-limits`](plugins/usage-limits) tracks the 5-hour and weekly windows. It shows how much of each you've used, how fast that number is climbing, and when it will hit 100% if that comes before the reset.
 
