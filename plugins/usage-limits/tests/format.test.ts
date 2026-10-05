@@ -1,6 +1,18 @@
 import { expect, test } from 'claude-code/testing'
 
-import { burnRate, duration, formatLimit, formatUsage, pace, record, runsOutIn, setting } from '../hooks/register'
+import {
+  burnRate,
+  cacheDrop,
+  duration,
+  formatLimit,
+  formatUsage,
+  needsStatus,
+  pace,
+  record,
+  runs,
+  runsOutIn,
+  setting,
+} from '../hooks/register'
 
 const NOW = Date.parse('2026-10-03T12:00:00Z')
 const MIN = 60_000
@@ -95,4 +107,61 @@ test('holds settings within bounds', async () => {
 test('formats durations', async () => {
   expect(duration(12 * MIN)).toBe('12m')
   expect(duration(134 * MIN)).toBe('2h14m')
+})
+
+// a request's usage: `fresh` tokens written to the cache, `read` served from it, 2K uncached
+const usage = (fresh: number, read: number) => ({
+  input_tokens: 2_000,
+  output_tokens: 500,
+  cache_creation_input_tokens: fresh,
+  cache_read_input_tokens: read,
+})
+
+test("never counts an agent's first request as a cache drop", async () => {
+  expect(cacheDrop(undefined, NOW, usage(400_000, 0))).toBeUndefined()
+})
+
+test('ignores a rebuilt context under 100K', async () => {
+  expect(cacheDrop(NOW - 10 * MIN, NOW, usage(90_000, 0))).toBeUndefined()
+})
+
+test('ignores a rebuild that comes soon after the previous request', async () => {
+  // four minutes is inside the cache's lifetime: a big write then is new content, not a lapse
+  expect(cacheDrop(NOW - 4 * MIN, NOW, usage(400_000, 0))).toBeUndefined()
+})
+
+test('ignores a request that mostly read its context from the cache', async () => {
+  expect(cacheDrop(NOW - 10 * MIN, NOW, usage(100_000, 300_000))).toBeUndefined()
+})
+
+test('counts a big rebuild after a long wait as a cache drop, with the tokens rebuilt', async () => {
+  // 380K of a 400K context written afresh six minutes after the previous request
+  expect(cacheDrop(NOW - 6 * MIN, NOW, usage(380_000, 18_000))).toBe(380_000)
+  // exactly half the context written counts too
+  expect(cacheDrop(NOW - 6 * MIN, NOW, usage(100_000, 98_000))).toBe(100_000)
+})
+
+test('appends the cache drops to the line only once there are some', async () => {
+  const measured = { rateLimits: [], context: { window: 200000, percent: 34 }, cost: { usd: 1.234 } }
+  expect(formatUsage(measured, NOW, new Map(), { count: 0, tokens: 0 })).toBe('limits: no reading yet · ctx 34% · $1.23')
+  expect(formatUsage(measured, NOW, new Map(), { count: 3, tokens: 1_900_000 })).toBe(
+    'limits: no reading yet · ctx 34% · $1.23 · cache drops 3 (1.9M)',
+  )
+})
+
+test('splits the line into dim runs and warning runs', async () => {
+  expect(runs(['5h 40%', '⚠ 7d 60% out in 2d', 'ctx 3%', '$1.00'])).toEqual([
+    { text: '5h 40% · ', isWarning: false },
+    { text: '⚠ 7d 60% out in 2d', isWarning: true },
+    { text: ' · ctx 3% · $1.00', isWarning: false },
+  ])
+})
+
+test('falls back to the status line only where no surface has a band', async () => {
+  expect(needsStatus(['terminal'])).toBe(false)
+  expect(needsStatus(['terminal', 'desktop'])).toBe(false)
+  expect(needsStatus(['terminal', 'mobile'])).toBe(false)
+  expect(needsStatus(['mobile'])).toBe(true)
+  expect(needsStatus(['vscode'])).toBe(true)
+  expect(needsStatus([])).toBe(true)
 })

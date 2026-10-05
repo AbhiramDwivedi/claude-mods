@@ -13,6 +13,8 @@ const CROWD_HYSTERESIS = 2
 const CROWD_QUIET_MS = 10 * 60_000
 // a busy session steps many times a second across its agents: redraw at most this often
 const REFRESH_MIN_MS = 2_000
+// the surfaces that raise the AbovePrompt band; any other gets the line as a status
+const BAND_SURFACES: readonly string[] = ['terminal', 'desktop']
 
 // claude-opus-5-5 -> Opus; an id outside the known families is shown as-is
 export function family(model: string): string {
@@ -51,6 +53,16 @@ export function formatModels(
   running: ReadonlySet<string>,
   limits: Thresholds,
 ): string {
+  return modelParts(current, agents, running, limits).join(' · ')
+}
+
+// the line's parts, as formatModels joins them
+export function modelParts(
+  current: string,
+  agents: AgentsSeen,
+  running: ReadonlySet<string>,
+  limits: Thresholds,
+): string[] {
   const parts = [`model: ${family(current)}`]
   const live = new Set(liveAgents(agents, running))
   if (Object.keys(agents).some(id => id !== 'main')) {
@@ -70,7 +82,31 @@ export function formatModels(
   if (live.size >= limits.liveAgents) parts.push(`⚠ ${live.size} live`)
   const top = biggestContext(agents, [...live], limits.context)
   if (top !== undefined) parts.push(`⚠ ctx ${tokens(top.context)}`)
-  return parts.join(' · ')
+  return parts
+}
+
+// the line as runs of text: each part marked ⚠ a warning run of its own, the other
+// parts and the separators merged into dim runs
+export type Run = { text: string; isWarning: boolean }
+export function runs(parts: readonly string[]): Run[] {
+  const out: Run[] = []
+  parts.forEach((part, i) => {
+    const pieces: Run[] = i > 0 ? [{ text: ' · ', isWarning: false }] : []
+    pieces.push({ text: part, isWarning: part.startsWith('⚠') })
+    for (const piece of pieces) {
+      const last = out[out.length - 1]
+      if (last !== undefined && !last.isWarning && !piece.isWarning) last.text += piece.text
+      else out.push({ ...piece })
+    }
+  })
+  return out
+}
+
+// whether no surface the session draws on raises a band (or nothing draws at all, as
+// under -p or an SDK host), so the line goes out as a status instead; a phone or IDE
+// attached beside a terminal goes without, so the terminal keeps its quiet band alone
+export function needsStatus(surfaces: readonly string[]): boolean {
+  return !surfaces.some(s => BAND_SURFACES.includes(s))
 }
 
 export type Crowd = { isArmed: boolean; lastToastAt: number }
@@ -100,6 +136,17 @@ export function setting(value: unknown, fallback: number, min: number, max: numb
 let crowd: Crowd = { isArmed: true, lastToastAt: -Infinity }
 const flaggedContext = new Set<string>()
 let lastRefreshAt = -Infinity
+// the line the band draws
+let line: string[] | undefined
+
+// the band draws the line where it is raised; the status carries it where it is not
+async function show($: EngineInterface, parts: string[]) {
+  if (line === undefined || line.join(' · ') !== parts.join(' · ')) {
+    line = parts
+    $.ui.invalidate('ui.render')
+  }
+  $.ui.status(needsStatus(await $.session.surfaces()) ? parts.join(' · ') : undefined)
+}
 
 async function refresh($: EngineInterface, limits: Thresholds) {
   const now = await $.clock.now()
@@ -108,7 +155,7 @@ async function refresh($: EngineInterface, limits: Thresholds) {
   const listed = await $.agent.list()
   const running = new Set(listed.filter(a => a.status === 'running').map(a => a.id))
   const descriptions = new Map(listed.map(a => [a.id, a.description]))
-  $.ui.status(formatModels(await $.session.model(), agents, running, limits))
+  await show($, modelParts(await $.session.model(), agents, running, limits))
 
   const live = liveAgents(agents, running)
   const alarm = crowdAlarm(crowd, live.length, now, limits.liveAgents)
@@ -173,5 +220,33 @@ export const register: Register = (on, options) => {
     const result = await next(e)
     await refresh($, limits)
     return result
+  })
+
+  // a phone or an IDE joining or leaving changes whether the status is needed
+  on('session.attach', async ($, e, next) => {
+    const result = await next(e)
+    if (line !== undefined) await show($, line)
+    return result
+  })
+  on('session.detach', async ($, e, next) => {
+    const result = await next(e)
+    if (line !== undefined) await show($, line)
+    return result
+  })
+
+  // one dim line in the band above the prompt, under what the plugins beneath drew;
+  // only the parts marked ⚠ take the warning color
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    const below = await next(e)
+    if (e.props.hasSurvey || line === undefined) return below
+    const { Box, Text } = $.ui.resolve(e)
+    return (
+      <Box flexDirection="column">
+        {below}
+        <Text wrap="truncate-end">
+          {runs(line).map(r => (r.isWarning ? <Text color="warning">{r.text}</Text> : <Text dimColor>{r.text}</Text>))}
+        </Text>
+      </Box>
+    )
   })
 }
