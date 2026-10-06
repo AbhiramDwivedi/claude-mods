@@ -52,7 +52,7 @@ Implementation notes (step 1a): `meta.billing` also carries `subagent_cache_ttl`
 
 Implementation notes (step 1b, deviations and choices):
 
-- Project names: the last path part of `cwd` (both `\` and `/` split; 1a only split on `/`, so Windows paths came through whole). Two different cwds with the same last part become `name (parent)`. `ctx.home` and `ctx.out_dir` exist on the Ctx; the parse cache version is 2 (the preceding-assistant-text tail is now 600 chars).
+- Project names (metrics version 3): a cwd with a hidden worktree segment (`.run-worktrees`, `.worktrees`, `.claude/worktrees`) maps to the segment before it; a Claude scratchpad path (`.../claude/<slug>/...`) maps to the longest known project name the slug ends with, else the slug's last token. Otherwise (as before) the last path part of `cwd` (both `\` and `/` split; 1a only split on `/`, so Windows paths came through whole). Two different cwds with the same last part become `name (parent)`. `ctx.home` and `ctx.out_dir` exist on the Ctx; the parse cache version is 2 (the preceding-assistant-text tail is now 600 chars).
 - Correction patterns live in `wa_m_rework.py`. Tight = message opens with no/nope/wrong/stop/wait/actually/that's not/not what/I said/why did you. Loose = the prototype regex (adds "don't", "do not", "instead", "actually" anywhere); it is the secondary count. Messages are typed or queued human text; slash commands are not messages; the first message is never a correction. Rates are per non-first message.
 - On the real data the tight pattern fires rarely (14 of 603), so `rework.correction_streaks` carries both `sessions`/`top` (tight) and `loose_sessions`/`loose_top`.
 - `rework.insights.auc.dissatisfied_vs_not` gives rank AUC of the per-session correction rate (tight and loose) over interactive sessions that /insights faceted; `n_joined` counts every faceted session in the window, `n_interactive_joined` the interactive ones. Needs 20+ interactive joined, else `auc` is `insufficient`.
@@ -64,19 +64,20 @@ Each metric carries its numbers and its `n`. Where it points at sessions, it car
 
 | Key | Meaning |
 |---|---|
-| `meta` | window, counts (main/interactive/unattended sessions, subagents, requests), versions and models seen, `billing.main_cache_ttl` (`1h`/`5m`/`mixed`, from the main-thread write split), insights presence/coverage, excluded sessions, prices source/date |
-| `cost.total` | price-weighted cost at list prices (USD) overall, by model, by project, main vs subagents |
-| `cost.cache.waste_pct` | share of cost lost to cache breaks: `{main, subagent, total}` |
+| `meta` | `plugins_installed` (`[{name, version, installed_at}]` from `~/.claude/plugins/installed_plugins.json`; omitted if unreadable), window, counts (main/interactive/unattended sessions, subagents, requests), versions and models seen, `billing.main_cache_ttl` (`1h`/`5m`/`mixed`, from the main-thread write split), insights presence/coverage, excluded sessions, prices source/date |
+| `cost.total` | price-weighted cost at list prices (USD) overall, by model, by project, main vs subagents, and `by_kind` `{interactive, unattended, interactive_pct, unattended_pct}` (a subagent takes its parent's kind) |
+| `cost.cache.waste_pct` | share of cost lost to cache breaks: `{main, subagent, total}`; `cost.cache.waste_pct_by_kind` `{interactive, unattended}` is waste as a share of that kind's own cost |
 | `cost.cache.by_cause` | rows `{thread, cause, count, rewritten_tokens, waste_pct}`. Causes, first match wins: `compaction`, `model_change`, `idle_over_ttl`, `version_change`, `idle_under_ttl`, `unexplained` |
 | `cost.cache.subagent_start_pct` | cost of subagents' first requests (structural) |
 | `cost.cache.resume_breaks` | subagent breaks split by what came before them: a message to the agent (coordinator/SendMessage/task notification), a long tool call, other |
 | `cost.cache.what_if.subagent_ttl_1h` | `{extra_pct, saved_pct, net_pct}` if every subagent cache write were 1h |
-| `cost.cache.top_sessions` | sessions with the most waste |
+| `cost.cache.what_if.fresh_instead_of_resume` | `{breaks, waste_pct, fresh_cost_pct, net_saving_pct, start_ctx_tokens, assumption}`: subagent breaks classed `message` vs starting a fresh subagent (writes median subagent first-request context + 5,000 tokens at the 5m price); ignores the work a fresh agent redoes |
+| `cost.cache.top_sessions` | sessions with the most waste, each with `kind` and `share_of_waste` |
 | `agents.calls` | Agent tool calls, total and per week |
 | `agents.explicit_model_rate` | share of Agent calls that set `model`, overall and per ISO week |
 | `agents.by_model` | subagents per model, split into explicitly set vs inherited |
-| `agents.size` | subagents whose largest request context exceeded 200K / 300K / 450K, max, top agents |
-| `context.claude_md` | lines of global and per-project CLAUDE.md (plus `.claude/CLAUDE.md` and `CLAUDE.local.md`) for projects seen in the window, and the session-weighted average lines loaded |
+| `agents.size` | subagents whose largest request context exceeded 200K / 300K / 450K, max, top agents, and `by_week` (ISO week of the subagent's first request: `{subagents, over_200k, over_300k, over_450k}`) |
+| `context.claude_md` | lines of global and per-project CLAUDE.md (plus `.claude/CLAUDE.md` and `CLAUDE.local.md`) for projects seen in the window, and the session-weighted average lines loaded; every listed file also carries `mtime` (ISO UTC) |
 | `rework.correction_rate` | corrections per non-first human message, interactive sessions only; overall, by project, top sessions |
 | `rework.correction_streaks` | sessions with 2+ consecutive corrective messages |
 | `rework.insights` | /insights outcome and friction counts, and (when 20+ sessions join) how well the correction rate separates dissatisfied sessions |

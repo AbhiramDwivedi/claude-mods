@@ -1,0 +1,52 @@
+"""Project labels for worktrees and scratch dirs, plugins_installed, CLAUDE.md mtime."""
+import json
+import os
+import tempfile
+import unittest
+
+import helpers  # noqa: F401
+import wa_m_context
+import wa_m_meta
+import wa_model
+from wa_common import project_name, resolve_cwd
+from test_step1b import ctx_of, session
+
+
+class Labels(unittest.TestCase):
+    def test_worktree_segments(self):
+        for cwd in (r"C:\sw\app\.run-worktrees\2026-10-01-x", "/h/app/.claude/worktrees/feat", "/h/app/.worktrees/a/b"):
+            self.assertEqual(project_name(cwd), "app", cwd)
+        self.assertEqual(project_name("/h/app/.git/hooks"), "hooks")
+
+    def test_scratch_slug_resolved_against_known_names(self):
+        cwds = ["/h/Documents/sw/code-pilot-retail", "C:/sw/resume",
+                "C:/Users/x/AppData/Local/Temp/claude/C--sw-resume/abc/scratchpad/e2e",
+                "/private/tmp/claude-501/-Users-x-Documents-sw-code-pilot-retail/abc/scratchpad",
+                "/tmp/claude/-Users-x-Documents-sw-unknown-thing/id"]
+        ss = [session("s%07d" % i, cwd=c) for i, c in enumerate(cwds)]
+        wa_model.assign_project_names(ss)
+        self.assertEqual([s["project"] for s in ss], ["code-pilot-retail", "resume", "resume", "code-pilot-retail", "thing"])
+
+    def test_same_name_different_owners_still_disambiguated(self):
+        ss = [session("a0000000", cwd="/x/one/app"), session("b0000000", cwd="/x/two/app"),
+              session("c0000000", cwd="/x/two/app/.worktrees/w")]
+        wa_model.assign_project_names(ss)
+        self.assertEqual([s["project"] for s in ss], ["app (one)", "app (two)", "app (two)"])
+        self.assertEqual(resolve_cwd("/a/b")[0], "b")
+
+
+class Meta(unittest.TestCase):
+    def test_plugins_installed_and_mtime(self):
+        with tempfile.TemporaryDirectory() as home:
+            os.makedirs(os.path.join(home, ".claude", "plugins"))
+            with open(os.path.join(home, ".claude", "plugins", "installed_plugins.json"), "w") as f:
+                json.dump({"version": 2, "plugins": {"p@m": [{"version": "1.0", "installedAt": "2026-03-01T21:00:37.079Z"}]}}, f)
+            self.assertEqual(wa_m_meta.plugins_installed(home),
+                             [{"name": "p@m", "version": "1.0", "installed_at": "2026-03-01T21:00:37.079Z"}])
+            self.assertIsNone(wa_m_meta.plugins_installed(os.path.join(home, "nope")))
+            with open(os.path.join(home, ".claude", "CLAUDE.md"), "w") as f:
+                f.write("a\n")
+            os.utime(os.path.join(home, ".claude", "CLAUDE.md"), (1790000000, 1790000000))
+            m = wa_m_context.claude_md(ctx_of(session("a1111111", cwd=home), home=home))["context.claude_md"]
+            self.assertEqual(m["global"]["mtime"], "2026-09-21T14:13:20Z")
+            self.assertEqual(m["paths"][0]["mtime"], "2026-09-21T14:13:20Z")

@@ -7,7 +7,7 @@ import statistics
 import time
 
 import wa_parse
-from wa_common import day, path_parts, project_name
+from wa_common import day, path_parts, project_name, resolve_cwd, slug_name
 
 # Cache-break rule (validated on real data, see CONTRACT.md).
 BREAK_PREV_READ_MIN = 20000   # previous request had a warm cache of at least this many tokens
@@ -98,16 +98,26 @@ def _decorate_session(s, project_dir):
 
 
 def assign_project_names(sessions):
-    """Readable project names: last path part of cwd; two different cwds sharing it become 'last (parent)'."""
-    by_last = {}
+    """Readable project names: the owning project of cwd (worktrees and scratchpads mapped back); two different
+    owners sharing a name become 'name (parent)'."""
+    res = {}
     for s in sessions:
-        parts = path_parts(s["cwd"])
-        if parts:
-            by_last.setdefault(parts[-1].lower(), set()).add(os.path.normcase("/".join(parts)))
+        res[s["id"]] = resolve_cwd(s["cwd"])
+    known = {r[0] for r in res.values() if r[0] and r[2] is None}
+    by_name = {}
     for s in sessions:
-        parts = path_parts(s["cwd"])
-        if len(parts) > 1 and len(by_last.get(parts[-1].lower(), ())) > 1:
-            s["project"] = "%s (%s)" % (parts[-1], parts[-2])
+        name, owner, slug = res[s["id"]]
+        if slug:
+            name = slug_name(slug, known)
+        elif not name:
+            continue
+        s["project"] = name
+        if owner:
+            by_name.setdefault(name.lower(), set()).add(os.path.normcase("/".join(owner)))
+    for s in sessions:
+        name, owner, slug = res[s["id"]]
+        if owner and len(owner) > 1 and len(by_name.get(name.lower(), ())) > 1:
+            s["project"] = "%s (%s)" % (name, owner[-2])
 
 
 def _link_subs(sessions_by_id, subs):

@@ -1,4 +1,7 @@
 """meta: what was read, and under which billing assumptions."""
+import json
+import os
+
 from wa_common import METRICS_VERSION, day, iso
 from wa_registry import metric
 
@@ -11,6 +14,27 @@ def _count(items):
     return dict(sorted(out.items(), key=lambda kv: -kv[1]))
 
 
+def plugins_installed(home):
+    """[{name, version, installed_at}] from ~/.claude/plugins/installed_plugins.json, or None if unreadable."""
+    path = os.path.join(home, ".claude", "plugins", "installed_plugins.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        out = []
+        for name, entries in (data.get("plugins") or {}).items():
+            for e in entries if isinstance(entries, list) else [entries]:
+                when = e.get("installedAt") or e.get("lastUpdated")
+                if not when and e.get("installPath"):
+                    try:
+                        when = iso(os.stat(e["installPath"]).st_mtime)
+                    except OSError:
+                        when = None
+                out.append({"name": name, "version": e.get("version"), "installed_at": when})
+        return sorted(out, key=lambda r: r["name"])
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
 @metric
 def meta(ctx):
     threads = ctx.threads()
@@ -21,7 +45,7 @@ def meta(ctx):
         for v, n in t["versions"].items():
             versions[v] = versions.get(v, 0) + n
     p = ctx.prices
-    return {"meta": {
+    out = {"meta": {
         "metrics_version": METRICS_VERSION,
         "window": {"days": ctx.days, "since": day(max(0, ctx.now - ctx.days * 86400)), "until": day(ctx.now),
                    "first_record": iso(min(stamps)) if stamps else None,
@@ -40,3 +64,7 @@ def meta(ctx):
                    "unknown_models": dict(p.unknown)},
         "cache": ctx.cache_stats,
     }}
+    pl = plugins_installed(ctx.home)
+    if pl is not None:
+        out["meta"]["plugins_installed"] = pl
+    return out

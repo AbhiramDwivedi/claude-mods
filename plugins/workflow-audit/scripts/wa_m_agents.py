@@ -45,6 +45,16 @@ def agents_size(ctx):
     out = {"n": len(sized), "max": sized[0][0] if sized else 0}
     for step in SIZE_STEPS:
         out["over_%dk" % (step // 1000)] = sum(1 for m, _ in sized if m > step)
+    weeks = {}
+    for m, sub in sized:
+        reqs = [r["ts"] for r in sub["requests"] if r["ts"]]
+        w = iso_week(min(reqs)) if reqs else "unknown"
+        row = weeks.setdefault(w, {"subagents": 0, "over_200k": 0, "over_300k": 0, "over_450k": 0})
+        row["subagents"] += 1
+        for step in SIZE_STEPS:
+            if m > step:
+                row["over_%dk" % (step // 1000)] += 1
+    out["by_week"] = dict(sorted(weeks.items()))
     out["top"] = [dict(example(sub["parent"] or sub, m), agent=sub["agent_id"], model=sub["child_model"])
                   for m, sub in sized[:10]]
     return {"agents.size": out}

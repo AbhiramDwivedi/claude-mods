@@ -137,3 +137,21 @@ class Prices_(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_by_kind_fresh_what_if_size_by_week(self):
+        m = wa_registry.run_all(self.ctx, ["wa_m_meta", "wa_m_cost", "wa_m_agents"])
+        bk = m["cost"]["total"]["by_kind"]
+        self.assertEqual(bk["interactive"], 0)  # orphan subagent counts as unattended
+        self.assertAlmostEqual(bk["unattended_pct"], 100.0, places=1)
+        self.assertGreater(m["cost"]["cache"]["waste_pct_by_kind"]["unattended"], 0)
+        top = m["cost"]["cache"]["top_sessions"][0]
+        self.assertEqual(top["kind"], "unattended")
+        self.assertAlmostEqual(top["share_of_waste"], 1.0, places=3)
+        f = m["cost"]["cache"]["what_if"]["fresh_instead_of_resume"]
+        self.assertEqual(f["breaks"], 1)
+        self.assertEqual(f["start_ctx_tokens"], 5000 + 101000)  # first request: 100000 read + 1000 written
+        self.assertAlmostEqual(f["net_saving_pct"], max(0.0, f["waste_pct"] - f["fresh_cost_pct"]), places=2)
+        self.assertIn("redo", f["assumption"])
+        bw = m["agents"]["size"]["by_week"]
+        self.assertEqual(sum(r["subagents"] for r in bw.values()), 1)
+        self.assertEqual(sum(r["over_200k"] for r in bw.values()), 0)
