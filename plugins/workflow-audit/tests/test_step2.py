@@ -82,3 +82,15 @@ class ClaudeMdImports(unittest.TestCase):
             self.assertEqual(len(project_files(d)), 1)                              # AGENTS.md now via import only
         name, _o, _s = resolve_cwd("/Users/a/code/pilot-retail/kb-hard/scratchpad/q1/run1/.run-worktrees/w")
         self.assertEqual(name, "kb-hard")
+
+
+class CleanedUpWorktrees(unittest.TestCase):
+    def test_gone_worktree_reads_its_project_root(self):
+        import tempfile
+        from wa_m_context import readable_root
+        with tempfile.TemporaryDirectory() as d:
+            gone = os.path.join(d, "kb", "scratchpad", "q1", "run1", ".run-worktrees", "w1")
+            os.makedirs(os.path.join(d, "kb"))
+            self.assertEqual(os.path.normcase(readable_root(gone)), os.path.normcase(os.path.join(d, "kb")))
+            really_gone = os.path.join(d, "renamed-project")
+            self.assertEqual(readable_root(really_gone), really_gone)

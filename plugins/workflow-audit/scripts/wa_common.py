@@ -8,7 +8,8 @@ from datetime import datetime, timezone
 # 3: project labels map worktree and Claude scratchpad cwds to the owning project; cost by_kind, fresh_instead_of_resume, size.by_week, plugins_installed.
 # 4: scratchpad paths win over worktree cuts; worktrees cut at the first hidden folder.
 # 5: CLAUDE.md lines include @imports and AGENTS.md; in-repo scratchpad worktrees map to their project.
-METRICS_VERSION = 5
+# 6: a cleaned-up worktree reads its project root's CLAUDE.md instead of counting as missing.
+METRICS_VERSION = 6
 
 
 def parse_ts(s):
@@ -75,6 +76,16 @@ def project_name(cwd, folder=""):
     if name:
         return name
     return folder.split("-")[-1] if folder else "unknown"
+
+
+def owner_root(cwd):
+    """The project folder a worktree cwd belongs to, as a path in cwd's own spelling, or None when cwd is
+    not a worktree (or is a temp scratchpad, whose project can't be spelled back from the slug)."""
+    owner = resolve_cwd(cwd)[1]
+    if not owner:
+        return None
+    segs = list(re.finditer(r"[^\\/]+", cwd))
+    return cwd[:segs[len(owner) - 1].end()] if len(owner) <= len(segs) else None
 
 
 def path_parts(cwd):
