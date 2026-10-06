@@ -50,3 +50,18 @@ class Meta(unittest.TestCase):
             m = wa_m_context.claude_md(ctx_of(session("a1111111", cwd=home), home=home))["context.claude_md"]
             self.assertEqual(m["global"]["mtime"], "2026-09-21T14:13:20Z")
             self.assertEqual(m["paths"][0]["mtime"], "2026-09-21T14:13:20Z")
+
+
+class ScratchAndWorktreeLabels(unittest.TestCase):
+    def test_scratchpad_worktree_and_nested_hidden_folder(self):
+        from wa_common import resolve_cwd, slug_name
+        known = ["pilot-retail", "pilot"]
+        cases = {
+            "/private/tmp/claude-502/-Users-a-code-pilot-retail/1686886a/scratchpad/qual5/x/run1/.run-worktrees/w1": "pilot-retail",
+            "/Users/a/code/pilot-retail/.hardening/sync-main/.run-worktrees/w2": "pilot-retail",
+            "C:\sw\proj\.claude\worktrees\feat-x": "proj",
+            "/Users/a/code/plain": "plain",
+        }
+        for cwd, want in cases.items():
+            name, _owner, slug = resolve_cwd(cwd)
+            self.assertEqual(slug_name(slug, known) if slug else name, want, cwd)

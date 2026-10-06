@@ -6,7 +6,8 @@ from datetime import datetime, timezone
 # Bump when a metric's definition changes, so a follow-up doesn't compare numbers measured two different ways.
 # 2: verification counts a project's own check scripts (python bin/selftest.py and the like).
 # 3: project labels map worktree and Claude scratchpad cwds to the owning project; cost by_kind, fresh_instead_of_resume, size.by_week, plugins_installed.
-METRICS_VERSION = 3
+# 4: scratchpad paths win over worktree cuts; worktrees cut at the first hidden folder.
+METRICS_VERSION = 4
 
 
 def parse_ts(s):
@@ -36,17 +37,18 @@ def resolve_cwd(cwd):
     """(name, owner_parts, slug) for a cwd. Worktree dirs map to the segment before the hidden worktree segment;
     a Claude scratchpad path (.../claude/<slug>/...) gives slug and a best-effort name (resolved later against known names)."""
     parts = path_parts(cwd)
-    for i, p in enumerate(parts):
-        if "worktree" not in p.lower():
-            continue
-        j = i if p.startswith(".") else (i - 1 if i > 0 and parts[i - 1].startswith(".") else None)  # .claude/worktrees
-        if j:
-            return parts[j - 1], parts[:j], None
+    # a scratchpad first, since eval harnesses make worktrees inside them: <tmp>/claude[-uid]/<project slug>/...
     for i, p in enumerate(parts[:-1]):
         if re.match(r"(?i)^claude(-\d+)?$", p) and "-" in parts[i + 1]:
             slug = parts[i + 1]
             toks = [t for t in slug.split("-") if t]
             return (toks[-1] if toks else slug), None, slug
+    # a worktree: cut at the first hidden folder on the way to it (pilot/.hardening/x/.run-worktrees/y -> pilot)
+    if any("worktree" in p.lower() for p in parts):
+        w = next(i for i, p in enumerate(parts) if "worktree" in p.lower())
+        k = next((i for i in range(1, w + 1) if parts[i].startswith(".")), None)
+        if k:
+            return parts[k - 1], parts[:k], None
     if parts:
         return parts[-1], parts, None
     return None, None, None
