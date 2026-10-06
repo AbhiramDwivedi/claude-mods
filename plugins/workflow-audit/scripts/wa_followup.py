@@ -59,6 +59,7 @@ def followup(metrics, prev_dir):
         return []
     if not isinstance(exps, list):
         exps = [exps]
+    current = (metrics.get("meta") or {}).get("metrics_version")
     rows = []
     for e in exps:
         if not isinstance(e, dict):
@@ -67,6 +68,11 @@ def followup(metrics, prev_dir):
         row = {k: e.get(k) for k in ("id", "change", "metric", "path", "baseline", "target", "direction", "committed")}
         row["now"] = now
         row["met"] = judge(now, e.get("target"), e.get("direction"))
+        if e.get("metrics_version") != current:
+            # measured under another definition: show the number, but don't call it met or missed
+            row["met"] = None
+            reason = "the baseline was measured with metrics version %s and this run uses %s; set a new baseline" % (
+                e.get("metrics_version"), current)
         if reason:
             row["reason"] = reason
         rows.append(row)

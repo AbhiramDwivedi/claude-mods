@@ -250,6 +250,21 @@ class Followup(unittest.TestCase):
         self.assertIn("too little data", by["d"]["reason"])
         self.assertEqual(by["a"]["change"], "c")
 
+    def test_changed_definition_is_not_judged(self):
+        metrics = dict(self.METRICS, meta={"metrics_version": 2})
+        exps = [{"id": "old", "metric": "agents.explicit_model_rate", "path": "overall", "baseline": 0.7,
+                 "target": 0.95, "direction": "up", "metrics_version": 1},
+                {"id": "same", "metric": "agents.explicit_model_rate", "path": "overall", "baseline": 0.7,
+                 "target": 0.95, "direction": "up", "metrics_version": 2}]
+        with tempfile.TemporaryDirectory() as old:
+            with open(os.path.join(old, "experiments.json"), "w") as f:
+                json.dump(exps, f)
+            by = {r["id"]: r for r in wa_followup.followup(metrics, old)}
+        self.assertEqual(by["old"]["now"], 0.97)
+        self.assertIsNone(by["old"]["met"])
+        self.assertIn("new baseline", by["old"]["reason"])
+        self.assertTrue(by["same"]["met"])
+
 
 class ProjectNames(unittest.TestCase):
     def test_last_part_both_separators(self):

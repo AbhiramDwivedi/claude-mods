@@ -75,7 +75,15 @@ Start one fresh subagent with `model: "opus"`. Give it the draft report and the 
 
 ### 7. Save and show
 
-Write `<run dir>/report.md` and `<run dir>/experiments.json` (the format is in this plugin's `CONTRACT.md`; one entry per experiment). Then show the person the report in chat, and give them the path. Never publish or upload it; it describes their private work.
+Write `<run dir>/report.md` and `<run dir>/proposed-experiments.json`: one entry per experiment in the report, in the format in this plugin's `CONTRACT.md`, with `metrics_version` copied from `metrics.meta.metrics_version`. Then show the person the report in chat, and give them the path. Never publish or upload it; it describes their private work.
+
+### 8. Let the person choose what to commit to
+
+An experiment is the person's commitment, not yours. The next audit grades them on whatever is in `experiments.json`, so only they decide what goes in it.
+
+Ask with AskUserQuestion, `multiSelect: true`: one option per proposed experiment, labelled with the change and its target, plus the automatic "Other" for adjusting a target. Write `<run dir>/experiments.json` with only the ones they pick, using the targets they set. If they pick none, write nothing.
+
+If you can't ask (a non-interactive run such as `claude -p`, or no answer comes), don't write `experiments.json`. Say in the report's last line that nothing was committed, and that the next interactive run will offer the proposals again.
 
 ## Report shape
 

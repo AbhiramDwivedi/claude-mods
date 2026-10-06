@@ -3,6 +3,10 @@ import os
 import re
 from datetime import datetime, timezone
 
+# Bump when a metric's definition changes, so a follow-up doesn't compare numbers measured two different ways.
+# 2: verification counts a project's own check scripts (python bin/selftest.py and the like).
+METRICS_VERSION = 2
+
 
 def parse_ts(s):
     """ISO timestamp string -> epoch seconds, or None."""

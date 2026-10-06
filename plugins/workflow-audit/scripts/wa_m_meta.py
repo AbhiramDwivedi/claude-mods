@@ -1,5 +1,5 @@
 """meta: what was read, and under which billing assumptions."""
-from wa_common import day, iso
+from wa_common import METRICS_VERSION, day, iso
 from wa_registry import metric
 
 
@@ -22,6 +22,7 @@ def meta(ctx):
             versions[v] = versions.get(v, 0) + n
     p = ctx.prices
     return {"meta": {
+        "metrics_version": METRICS_VERSION,
         "window": {"days": ctx.days, "since": day(max(0, ctx.now - ctx.days * 86400)), "until": day(ctx.now),
                    "first_record": iso(min(stamps)) if stamps else None,
                    "last_record": iso(max(stamps)) if stamps else None},

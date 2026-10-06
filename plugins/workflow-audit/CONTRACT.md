@@ -88,9 +88,11 @@ Each metric carries its numbers and its `n`. Where it points at sessions, it car
 
 ## experiments.json (written by the skill into the run dir)
 
+The skill always writes `proposed-experiments.json`, and writes `experiments.json` only with the experiments the person chose. The script reads only `experiments.json`. Each entry carries `metrics_version` (from `meta.metrics_version`). A follow-up whose baseline was measured under another version reports the value but leaves `met` null, with a reason. Bump `METRICS_VERSION` in `wa_common.py` whenever a metric's definition changes.
+
 ```json
 [{"id": "explicit-agent-models", "metric": "agents.explicit_model_rate", "path": "overall",
-  "baseline": 0.71, "target": 0.95, "direction": "up", "committed": "2026-10-06",
+  "baseline": 0.71, "target": 0.95, "direction": "up", "committed": "2026-10-06", "metrics_version": 2,
   "change": "Set model on every Agent call"}]
 ```
 
