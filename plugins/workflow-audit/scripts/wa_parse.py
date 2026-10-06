@@ -16,10 +16,10 @@ import re
 
 from wa_common import parse_ts
 
-PARSER_VERSION = 1
+PARSER_VERSION = 2
 TEXT_MAX = 2000
 CMD_MAX = 300
-TAIL_MAX = 300
+TAIL_MAX = 600
 
 SKIP_PREFIXES = (
     "<task-notification", "<local-command", "<command-name>", "<command-message", "<system-reminder>",

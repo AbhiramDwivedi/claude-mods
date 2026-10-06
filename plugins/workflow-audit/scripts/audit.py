@@ -15,13 +15,13 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import wa_followup  # noqa: E402
 import wa_model  # noqa: E402
 import wa_registry  # noqa: E402
 from wa_common import day, home_dir  # noqa: E402
 from wa_prices import Prices  # noqa: E402
 
-# Step 1b appends its modules here.
-METRIC_MODULES = ["wa_m_meta", "wa_m_cost", "wa_m_agents"]
+METRIC_MODULES = ["wa_m_meta", "wa_m_cost", "wa_m_agents", "wa_m_context", "wa_m_rework", "wa_m_usage"]
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_PRICES = os.path.join(HERE, "..", "catalog", "prices.json")
@@ -104,8 +104,13 @@ def run(args):
     if not ctx.n_files:
         sys.stderr.write("No transcripts found in %s within the last %d days.\n" % (projects, args.days))
         return EXIT_NO_TRANSCRIPTS
-    metrics = wa_registry.run_all(ctx, METRIC_MODULES)
+    ctx.out_dir = out_dir
     os.makedirs(os.path.join(out_dir, "samples"), exist_ok=True)
+    metrics = wa_registry.run_all(ctx, METRIC_MODULES)
+    prev = wa_followup.find_previous([os.path.join(workflow_dir(), "runs"), os.path.dirname(out_dir)], out_dir)
+    if prev:
+        metrics["followup"] = wa_followup.followup(metrics, prev)
+        metrics["followup_from"] = prev
     with open(os.path.join(out_dir, "metrics.json"), "w", encoding="utf8") as f:
         json.dump(metrics, f, indent=1, ensure_ascii=False)
     print(out_dir)

@@ -21,6 +21,12 @@
       "description": "Tells the main agent how to size and split work, asks a growing subagent to checkpoint, and refuses its tools past a hard limit so a fresh agent takes over",
       "source": "./plugins/pit-stop",
       "category": "productivity"
+    },
+    {
+      "name": "workflow-audit",
+      "description": "Audits how you use Claude Code from your own transcripts and writes a blunt report: where your spend and rework go, checked against dated advice, with one experiment per finding",
+      "source": "./plugins/workflow-audit",
+      "category": "productivity"
     }
   ]
 }

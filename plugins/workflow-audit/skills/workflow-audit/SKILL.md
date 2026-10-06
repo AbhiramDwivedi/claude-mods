@@ -42,13 +42,21 @@ If `metrics.json` has `followup`, an earlier audit left experiments. That goes f
 
 `metrics.samples` lists excerpt files of the sessions with the most corrections. Have them read in parallel by subagents, `model: "sonnet"`, at most five, one or two files each. Give each this brief, filled in:
 
-> Read these files: <paths>. Each holds moments where the person corrected Claude: Claude's message just before, then the person's message. For each moment, classify the cause as exactly one of `unclear_ask` (the request could reasonably be read the way Claude read it), `ignored_rule` (an existing instruction already covered it; these CLAUDE.md files were in effect: <paths from metrics.context.claude_md>, so check them), `claude_wrong` (clear ask, Claude got it wrong), `changed_mind` (the person changed the goal), or `other`. Return JSON only: `[{"file": ..., "session8": ..., "cause": ..., "evidence": "<= 15-word quote", "rule": "<the CLAUDE.md line if ignored_rule, else null>"}]`. Do not write files.
+> Read these files: <paths>. Each holds moments a word pattern flagged as possible corrections: Claude's message just before, then the person's message. Many are not corrections at all (an ordinary instruction that happens to contain "don't" or "actually"). For each moment, classify it as exactly one of `not_a_correction`, `unclear_ask` (the request could reasonably be read the way Claude read it), `ignored_rule` (an existing instruction already covered it; these CLAUDE.md files were in effect: <paths from metrics.context.claude_md>, so check them), `claude_wrong` (clear ask, Claude got it wrong), `changed_mind` (the person changed the goal), or `other`. Return JSON only: `[{"file": ..., "session8": ..., "moment": <n>, "cause": ..., "evidence": "<= 15-word quote", "rule": "<the CLAUDE.md line if ignored_rule, else null>"}]`. Do not write files.
 
 If you can't start subagents, read the files yourself.
+
+The sample readers' verdicts are the real correction count. Report the share of flagged moments that were real corrections, and the causes among those. Use `rework.correction_rate` for its trend and by-project spread, not as an exact count: the word patterns are imprecise (`precision_note`).
 
 ### 5. Choose the findings
 
 Collect candidates from every area of `metrics.json`: cost (cache waste and its causes, inherited agent models, agent size, model mix), rework (correction rate, streaks, /insights friction), context (CLAUDE.md weight), verification, practices. Skip any metric marked `insufficient`.
+
+Read each metric for what it can and can't show:
+
+- `verification.check_after_last_edit` recognises common test, build and lint commands only. A session that checked its work another way (a custom script, a browser, the person looking at it) counts as unchecked. Treat a low share as a question to put to the person, with the session list, not as proof.
+- Cost percentages are at list prices. On a subscription they show where usage limits go, not a bill.
+- Unattended sessions (no human messages, or `claude -p`) count toward cost but not toward behaviour metrics.
 
 Rank them by what they cost the person: a share of spend for cost findings, and how many sessions it touched and how badly for rework findings. Keep **at most five**. Three strong findings beat five padded ones.
 

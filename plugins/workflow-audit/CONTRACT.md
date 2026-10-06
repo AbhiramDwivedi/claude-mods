@@ -50,6 +50,16 @@ Exit codes: 0 ok, 2 no transcripts found, 3 bad arguments. Errors go to stderr a
 
 Implementation notes (step 1a): `meta.billing` also carries `subagent_cache_ttl`, inferred the same way (the break rule uses it as the subagent TTL; `mixed` counts as 5m). A request is a cache break when the previous request read >= 20K cached tokens, the request wrote > 50% of its context, and it wrote >= 20K more than the thread's median ordinary write; waste is rewritten tokens x (write price - read price). `agents.calls` and `explicit_model_rate` count Agent calls in main-thread files only. `what_if.subagent_ttl_1h.saved_pct` counts subagent breaks classed `idle_over_ttl` with a gap of 60 minutes or less. Metric modules register with `@wa_registry.metric` and are listed in `METRIC_MODULES` in audit.py.
 
+Implementation notes (step 1b, deviations and choices):
+
+- Project names: the last path part of `cwd` (both `\` and `/` split; 1a only split on `/`, so Windows paths came through whole). Two different cwds with the same last part become `name (parent)`. `ctx.home` and `ctx.out_dir` exist on the Ctx; the parse cache version is 2 (the preceding-assistant-text tail is now 600 chars).
+- Correction patterns live in `wa_m_rework.py`. Tight = message opens with no/nope/wrong/stop/wait/actually/that's not/not what/I said/why did you. Loose = the prototype regex (adds "don't", "do not", "instead", "actually" anywhere); it is the secondary count. Messages are typed or queued human text; slash commands are not messages; the first message is never a correction. Rates are per non-first message.
+- On the real data the tight pattern fires rarely (14 of 603), so `rework.correction_streaks` carries both `sessions`/`top` (tight) and `loose_sessions`/`loose_top`.
+- `rework.insights.auc.dissatisfied_vs_not` gives rank AUC of the per-session correction rate (tight and loose) over interactive sessions that /insights faceted; `n_joined` counts every faceted session in the window, `n_interactive_joined` the interactive ones. Needs 20+ interactive joined, else `auc` is `insufficient`.
+- `samples` are written by the metric into `<run>/samples/` (needs `ctx.out_dir`): up to 8 interactive sessions with 2+ tight corrections. Secrets are redacted (`sk-`/token prefixes, `password=`/`token=` values, 32+ hex, 32+ char runs mixing letters and digits).
+- `practices.usage.permission_modes.sessions_by_mode_seen` counts sessions in which each permissionMode appeared. Plan mode uses = transitions into `plan` plus EnterPlanMode/ExitPlanMode tool uses.
+- `followup` is a list; `followup_from` names the run dir used. The previous run is searched under `~/.claude/workflow-audit/runs` and the parent folder of `--out`. Each row carries `reason` when `now` is null.
+
 Each metric carries its numbers and its `n`. Where it points at sessions, it carries up to 10 examples as `{session, session8, project, date, value}`. Project is the readable name (the last path part of the session's `cwd`), not the folder slug. Every metric that a catalog entry or an experiment can reference has a stable dotted key, listed below. The file is nested: the key `cost.cache.waste_pct` is `metrics["cost"]["cache"]["waste_pct"]`. A metric with too little data still appears, with `"insufficient": true` and the reason.
 
 | Key | Meaning |

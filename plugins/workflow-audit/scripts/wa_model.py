@@ -7,7 +7,7 @@ import statistics
 import time
 
 import wa_parse
-from wa_common import day, project_name
+from wa_common import day, path_parts, project_name
 
 # Cache-break rule (validated on real data, see CONTRACT.md).
 BREAK_PREV_READ_MIN = 20000   # previous request had a warm cache of at least this many tokens
@@ -29,6 +29,8 @@ class Ctx:
         self.billing = {}
         self.insights = {}
         self.n_files = 0
+        self.home = None
+        self.out_dir = None     # set by audit.run; metrics that write files (samples) use it
 
     def threads(self):
         return list(self.sessions) + list(self.subs)
@@ -95,6 +97,19 @@ def _decorate_session(s, project_dir):
     s["subs"] = []
 
 
+def assign_project_names(sessions):
+    """Readable project names: last path part of cwd; two different cwds sharing it become 'last (parent)'."""
+    by_last = {}
+    for s in sessions:
+        parts = path_parts(s["cwd"])
+        if parts:
+            by_last.setdefault(parts[-1].lower(), set()).add(os.path.normcase("/".join(parts)))
+    for s in sessions:
+        parts = path_parts(s["cwd"])
+        if len(parts) > 1 and len(by_last.get(parts[-1].lower(), ())) > 1:
+            s["project"] = "%s (%s)" % (parts[-1], parts[-2])
+
+
 def _link_subs(sessions_by_id, subs):
     for sub in subs:
         parent = sessions_by_id.get(sub["session"])
@@ -111,7 +126,7 @@ def _link_subs(sessions_by_id, subs):
         sub["call"] = call
         sub["id"], sub["id8"] = sub["session"], sub["session"][:8]
         sub["explicit_model"] = call.get("model") if call else sub["sub_meta"].get("model")
-        sub["project"] = parent["project"] if parent else project_name(sub["cwd"])
+        sub["project"] = parent["project"] if parent else project_name(sub["cwd"], sub.get("project_dir", ""))
         sub["date"] = day(sub["first_ts"])
 
 
@@ -215,6 +230,7 @@ def insights_info(home, session_ids):
 def build_context(projects_dir, days, cache_dir, prices, exclude_ids=(), now=None, home=None):
     now = now or time.time()
     ctx = Ctx()
+    ctx.home = home or os.path.expanduser("~")
     ctx.now, ctx.days, ctx.projects_dir, ctx.prices = now, days, projects_dir, prices
     files = discover(projects_dir, days, now)
     ctx.n_files = len(files)
@@ -234,6 +250,7 @@ def build_context(projects_dir, days, cache_dir, prices, exclude_ids=(), now=Non
             _decorate_session(s, s["project_dir"])
             ctx.sessions.append(s)
     ctx.subs = [s for s in subs if s["session"] not in excluded_ids]
+    assign_project_names(ctx.sessions)
     _link_subs({s["id"]: s for s in ctx.sessions}, ctx.subs)
     annotate(ctx)
     ctx.insights = insights_info(home or os.path.expanduser("~"), [s["id"] for s in ctx.sessions])

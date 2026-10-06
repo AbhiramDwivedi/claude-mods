@@ -1,3 +1,5 @@
 # laid by Claude Code at each load: this build's API types and this machine's MCP tool list
 **/.claude-plugin/types/
 node_modules/
+__pycache__/
+*.pyc
