@@ -1,6 +1,6 @@
 # claude-mods
 
-Three [Claude Code](https://claude.com/claude-code) mods. Two tell you a session is eating your usage limits while you can still stop it, not after you hit the wall. The third keeps subagents from growing large enough to do that.
+Three [Claude Code](https://claude.com/claude-code) mods and an audit. Two mods tell you a session is eating your usage limits while you can still stop it, not after you hit the wall. The third keeps subagents from growing large enough to do that. The audit looks back over a month of your sessions and tells you, with numbers, what to change.
 
 The first two each add a dim line above the prompt, with only the warnings in color:
 
@@ -35,6 +35,8 @@ Your agents have drifted onto your most expensive model, one of them is carrying
 
 pit-stop is the exception. The other two are the gauges and the road signs, and pit-stop is the pit crew. It changes what your agents do, so install it only if you want that.
 
+[`workflow-audit`](plugins/workflow-audit) is the post-race review. The mods watch one session at a time; the audit reads a month of your transcripts and runs as a command, `/workflow-audit`, in its own session. It finds where your spend and rework go, checks your habits against current advice from Anthropic's docs and staff (dated, graded by evidence, and marked when later advice reversed it), and gives you at most five findings, each with one experiment to try. The next run tells you whether the experiment worked. It needs Python 3.9 or newer; everything stays on your machine.
+
 ## Install
 
 You need Claude Code 2.1.287 or newer, the first release with mods. The mod API is early access and can change between releases.
@@ -44,9 +46,12 @@ You need Claude Code 2.1.287 or newer, the first release with mods. The mod API 
 /plugin install usage-limits@claude-mods
 /plugin install session-models@claude-mods
 /plugin install pit-stop@claude-mods
+/plugin install workflow-audit@claude-mods
 ```
 
 The mods load when your next session starts.
+
+To get updates automatically, including the audit's advice catalog as models and Claude Code change, run `/plugin`, open **Marketplaces**, select claude-mods and choose **Enable auto-update**. It is off by default for marketplaces outside Anthropic's own.
 
 `/plugin install` installs for your user by default, so a mod runs in every project. Keep it that way for usage-limits and session-models. Your limits are shared by every session you run, and the session burning through them may be in a project you didn't think to set up. pit-stop changes what agents do, so you may prefer `claude plugin install pit-stop@claude-mods --scope project` in the projects you want it in.
 
@@ -129,7 +134,7 @@ pit-stop keeps its counts inside the mod, so a reload starts them over. After on
 To run the mods from a clone instead of the marketplace, pass the folders for one session:
 
 ```
-claude --plugin-dir ./plugins/usage-limits --plugin-dir ./plugins/session-models --plugin-dir ./plugins/pit-stop
+claude --plugin-dir ./plugins/usage-limits --plugin-dir ./plugins/session-models --plugin-dir ./plugins/pit-stop --plugin-dir ./plugins/workflow-audit
 ```
 
 Or list them in the `env` block of `~/.claude/settings.json`. Separate the paths with `;` on Windows and `:` elsewhere:
@@ -149,6 +154,7 @@ Before you commit:
 ```
 claude plugin validate plugins/usage-limits   # checks the manifest and module as the engine reads them
 claude plugin test plugins/usage-limits       # runs tests/*.test.ts
+python -m unittest discover -s plugins/workflow-audit/tests   # the audit's script
 ```
 
 When a mod loads, Claude Code writes its API types into the mod's `.claude-plugin/types/` folder, along with a list of the MCP tools on your machine. Git ignores that folder. After the first load, `tsc -p plugins/<mod>` type-checks the mod.
