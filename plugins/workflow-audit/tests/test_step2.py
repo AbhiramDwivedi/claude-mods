@@ -65,3 +65,20 @@ class ScratchAndWorktreeLabels(unittest.TestCase):
         for cwd, want in cases.items():
             name, _owner, slug = resolve_cwd(cwd)
             self.assertEqual(slug_name(slug, known) if slug else name, want, cwd)
+
+
+class ClaudeMdImports(unittest.TestCase):
+    def test_imports_agents_md_and_scratchpad_cut(self):
+        import tempfile
+        from wa_common import resolve_cwd
+        from wa_m_context import count_lines, project_files
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, "AGENTS.md"), "w") as f:
+                f.write("a\nb\nc\n")
+            self.assertEqual(sum(v["lines"] for v in project_files(d).values()), 3)   # AGENTS.md alone
+            with open(os.path.join(d, "CLAUDE.md"), "w") as f:
+                f.write("intro\n@AGENTS.md\nwrite to me@example.com\n")
+            self.assertEqual(count_lines(os.path.join(d, "CLAUDE.md")), 6)          # 3 + imported 3
+            self.assertEqual(len(project_files(d)), 1)                              # AGENTS.md now via import only
+        name, _o, _s = resolve_cwd("/Users/a/code/pilot-retail/kb-hard/scratchpad/q1/run1/.run-worktrees/w")
+        self.assertEqual(name, "kb-hard")

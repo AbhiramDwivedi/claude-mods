@@ -77,7 +77,7 @@ Each metric carries its numbers and its `n`. Where it points at sessions, it car
 | `agents.explicit_model_rate` | share of Agent calls that set `model`, overall and per ISO week |
 | `agents.by_model` | subagents per model, split into explicitly set vs inherited |
 | `agents.size` | subagents whose largest request context exceeded 200K / 300K / 450K, max, top agents, and `by_week` (ISO week of the subagent's first request: `{subagents, over_200k, over_300k, over_450k}`) |
-| `context.claude_md` | lines of global and per-project CLAUDE.md (plus `.claude/CLAUDE.md` and `CLAUDE.local.md`) for projects seen in the window, and the session-weighted average lines loaded; every listed file also carries `mtime` (ISO UTC) |
+| `context.claude_md` | lines of global and per-project CLAUDE.md (plus `.claude/CLAUDE.md` and `CLAUDE.local.md`) for projects seen in the window, and the session-weighted average lines loaded; every listed file also carries `mtime` (ISO UTC). Line counts follow `@imports` (up to 5 deep) and count `AGENTS.md` when a folder has no CLAUDE.md. Cwds that no longer exist go to `missing_cwds` and out of the average |
 | `rework.correction_rate` | corrections per non-first human message, interactive sessions only; overall, by project, top sessions |
 | `rework.correction_streaks` | sessions with 2+ consecutive corrective messages |
 | `rework.insights` | /insights outcome and friction counts, and (when 20+ sessions join) how well the correction rate separates dissatisfied sessions |

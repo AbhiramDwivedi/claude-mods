@@ -7,7 +7,8 @@ from datetime import datetime, timezone
 # 2: verification counts a project's own check scripts (python bin/selftest.py and the like).
 # 3: project labels map worktree and Claude scratchpad cwds to the owning project; cost by_kind, fresh_instead_of_resume, size.by_week, plugins_installed.
 # 4: scratchpad paths win over worktree cuts; worktrees cut at the first hidden folder.
-METRICS_VERSION = 4
+# 5: CLAUDE.md lines include @imports and AGENTS.md; in-repo scratchpad worktrees map to their project.
+METRICS_VERSION = 5
 
 
 def parse_ts(s):
@@ -46,7 +47,7 @@ def resolve_cwd(cwd):
     # a worktree: cut at the first hidden folder on the way to it (pilot/.hardening/x/.run-worktrees/y -> pilot)
     if any("worktree" in p.lower() for p in parts):
         w = next(i for i, p in enumerate(parts) if "worktree" in p.lower())
-        k = next((i for i in range(1, w + 1) if parts[i].startswith(".")), None)
+        k = next((i for i in range(1, w + 1) if parts[i].startswith(".") or parts[i].lower() == "scratchpad"), None)
         if k:
             return parts[k - 1], parts[:k], None
     if parts:
