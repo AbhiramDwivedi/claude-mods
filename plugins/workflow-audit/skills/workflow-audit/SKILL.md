@@ -19,6 +19,7 @@ A script does the measuring. You do the judging. The catalog says what current a
 - **Price the fix before recommending it.** If a metric has a what-if (for example a longer subagent cache TTL), use it. A fix that costs more than it saves is not a recommendation.
 - **User or model.** A correction can mean the ask was unclear, Claude ignored an existing rule, Claude was simply wrong, or the person changed their mind. Say which the samples show. Don't blame the person for the model, or the model for the person.
 - **Plain words.** Short sentences. Numbers over adjectives.
+- **Only the audit.** Leave out anything the metrics and samples don't cover: connector or MCP status, setup tips, unrelated observations about the environment.
 
 ## Steps
 

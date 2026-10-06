@@ -267,3 +267,13 @@ class ProjectNames(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CheckScripts(unittest.TestCase):
+    def test_project_check_scripts_count(self):
+        import wa_m_usage
+        self.assertTrue(wa_m_usage.is_check("cd /c/sw/resume && python bin/selftest.py"))
+        self.assertTrue(wa_m_usage.is_check("py -3 tools/run_tests.py -q"))
+        self.assertTrue(wa_m_usage.is_check("bash scripts/check.sh"))
+        self.assertFalse(wa_m_usage.is_check("grep -n x bin/selftest.py"))
+        self.assertFalse(wa_m_usage.is_check("python bin/render.py"))

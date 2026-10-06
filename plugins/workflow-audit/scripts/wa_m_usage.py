@@ -15,6 +15,10 @@ CHECK = re.compile(
     r"tsc|cargo\s+(test|build|check|clippy)|go\s+(test|build|vet)|mvn|gradle|gradlew|make\s+(test|check|lint|build)|"
     r"ruff|flake8|pylint|eslint|mypy|pyright|dotnet\s+(test|build)|"
     r"claude\s+plugin\s+(test|validate)|py_compile|compileall|pre-commit)\b", re.I)
+# a project's own check script run by an interpreter: python bin/selftest.py, bash run_tests.sh, node check.mjs
+SCRIPT_CHECK = re.compile(
+    r"\b(python3?|py(\s+-3)?|node|bun|deno|bash|sh|pwsh|powershell)\s+(-\S+\s+)*\S*?"
+    r"(test|tests|check|checks|verify|lint|validate)\w*\.(py|sh|js|mjs|cjs|ts|ps1)\b", re.I)
 
 
 def active_minutes(s):
@@ -46,7 +50,7 @@ def sessions_shape(ctx):
 
 
 def is_check(cmd):
-    return bool(cmd and CHECK.search(cmd))
+    return bool(cmd and (CHECK.search(cmd) or SCRIPT_CHECK.search(cmd)))
 
 
 @metric
