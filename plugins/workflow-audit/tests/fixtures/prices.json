@@ -1,0 +1,5 @@
+{"source": "fixture", "checked": "2026-10-06", "unit": "USD per million tokens",
+ "models": {
+  "claude-test-sub": {"input": 2, "output": 10, "cache_read": 0.2, "cache_write_5m": 2.5, "cache_write_1h": 4},
+  "claude-test": {"input": 10, "output": 50, "cache_read": 1, "cache_write_5m": 12.5, "cache_write_1h": 20}},
+ "fallback": {"output": 5.0, "cache_read": 0.1, "cache_write_5m": 1.25, "cache_write_1h": 2.0, "note": "multiples of input"}}
