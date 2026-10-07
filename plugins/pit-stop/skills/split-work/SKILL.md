@@ -30,9 +30,24 @@ Most of a fresh agent's cost is orientation. A precise brief replaces exploratio
 - The commands that check the work, such as the test command and the linter, and how to keep their output short.
 - The boundary: what is out of scope, and what to do if the job turns out bigger than described.
 - Where to write the handoff note, if it has to stop early. A file in the repo, such as `docs/handoff/<phase>.md`, keeps your own context small.
-- The model, set with the Agent tool's `model` parameter. Leaving it unset runs the agent on your model, which is often the most expensive one.
+- The model, set with the Agent tool's `model` parameter. See "Pick the model" below.
 
 Do not paste large file contents or long history into a brief. Point to files and line ranges instead.
+
+## Pick the model
+
+Choose a model for each agent from its job, not from the session's model.
+
+- Use a stronger model, such as `opus`, for judgment: design, debugging, review, and tricky code.
+- Use a cheaper model, such as `sonnet`, for mechanical, search, bulk, or fully specified work. A brief precise enough to follow step by step usually needs no more.
+
+Leaving `model` unset runs the agent on the default subagent model. Unless the person has set one, that is your own model, which may be the most expensive one available. If the person asks how to stop this, they can set a fallback in the `env` block of `~/.claude/settings.json`:
+
+```json
+{ "env": { "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet" } }
+```
+
+That covers agents started without a model. Keep setting `model` on each call anyway, because the right model depends on the job.
 
 ## Handle a CHECKPOINT report
 
