@@ -19,7 +19,7 @@ EDIT_TOOLS = {'Edit', 'Write', 'MultiEdit', 'NotebookEdit'}
 SIM_LIMITS = (200_000, 250_000, 300_000, 350_000, 450_000)
 DEFAULT_F = 0.6
 
-# Marker strings from plugins/subagent-limits/hooks/register.ts. The plugin was called pit-stop until
+# Marker strings from ../hooks/register.ts. The plugin was called pit-stop until
 # 0.3.0, so older transcripts carry the [pit-stop] tag; MARKS matches both. The note regexes demand concrete
 # numbers, so a transcript that merely read the TypeScript source (`${tokens(context)}`) does not match.
 MARKS = ('[subagent-limits]', '[pit-stop]')

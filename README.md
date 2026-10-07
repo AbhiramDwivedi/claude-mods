@@ -111,7 +111,7 @@ When a subagent's requests carry `nudgeAtK` thousand tokens of context, its next
 
 The brief also asks agents to run the narrowest command that proves a change and not to wait in sleep loops. If a subagent's cache still expires while it waits on its own tool call, the mod tells it once how much context it rebuilt and after how long a pause, and suggests checking on long jobs sooner or running something shorter. It gives no fixed polling interval, because whether polling pays depends on your plan and your jobs. Replayed over 945 real subagents, the note would have reached about 4% of agents in normal sessions.
 
-The defaults come from two analyses. One replayed 32 subagents from a long session against different limits, pricing every request at API rates. That includes re-writing an agent's whole context into the cache after it sits idle for more than five minutes, which was about a quarter of the cost. The other measured 938 subagents from a month of sessions on another machine. Both put the best limit at about twice the context an agent carries when it makes its first edit. Both datasets come from one person's work, so treat the defaults as a starting point and tune `nudgeAtK` and `stopAtK` for yours.
+The defaults come from two analyses. One replayed 32 subagents from a long session against different limits, pricing every request at API rates. That includes re-writing an agent's whole context into the cache after it sits idle for more than five minutes, which was about a quarter of the cost. The other measured 938 subagents from a month of sessions on another machine. Both put the best limit at about twice the context an agent carries when it makes its first edit. Both datasets come from one person's work, so treat the defaults as a starting point and tune `nudgeAtK` and `stopAtK` for yours. The mod ships a script that runs this analysis on your transcripts: see [check the limits against your own agents](plugins/subagent-limits/README.md#check-the-limits-against-your-own-agents).
 
 A fresh agent starts with 35K to 45K tokens of context. One briefed with a single phase of work read about 117K more before its first edit. For those agents the best limit was 300K to 350K, which cost about a fifth less than no limit. Lower limits backfire, because every agent cut off has to pay that startup again. At 200K the replay cost about a third more than no limit. At 250K it saved half as much as at 300K and ran 26% slower, against 13% at 300K. Agents briefed with a whole feature read about 220K before their first edit, and for them every limit up to 400K cost more than no limit.
 
@@ -150,8 +150,6 @@ Or list them in the `env` block of `~/.claude/settings.json`. Separate the paths
 An interactive session watches those folders and reloads a mod when you save a file.
 
 Load each mod one way only. If it is in `CLAUDE_CODE_PLUGIN_DIRS` and also installed from the marketplace, it runs twice, with every line and toast doubled. `claude plugin list` shows both copies.
-
-[`tools/ctx-study`](tools/ctx-study) reads your local session transcripts and reports how large your subagents grow, how much of the cost comes above the subagent-limits thresholds, and whether its handoffs pay off. Run it weekly to check the limits still suit how you work.
 
 Before you commit:
 
