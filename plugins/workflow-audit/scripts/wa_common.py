@@ -45,7 +45,7 @@ def resolve_cwd(cwd):
             slug = parts[i + 1]
             toks = [t for t in slug.split("-") if t]
             return (toks[-1] if toks else slug), None, slug
-    # a worktree: cut at the first hidden folder on the way to it (pilot/.hardening/x/.run-worktrees/y -> pilot)
+    # a worktree: cut at the first hidden folder on the way to it (app/.hardening/x/.run-worktrees/y -> app)
     if any("worktree" in p.lower() for p in parts):
         w = next(i for i, p in enumerate(parts) if "worktree" in p.lower())
         k = next((i for i in range(1, w + 1) if parts[i].startswith(".") or parts[i].lower() == "scratchpad"), None)

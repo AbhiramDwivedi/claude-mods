@@ -19,13 +19,13 @@ class Labels(unittest.TestCase):
         self.assertEqual(project_name("/h/app/.git/hooks"), "hooks")
 
     def test_scratch_slug_resolved_against_known_names(self):
-        cwds = ["/h/Documents/sw/code-pilot-retail", "C:/sw/resume",
+        cwds = ["/h/Documents/sw/code-shop-app", "C:/sw/resume",
                 "C:/Users/x/AppData/Local/Temp/claude/C--sw-resume/abc/scratchpad/e2e",
-                "/private/tmp/claude-501/-Users-x-Documents-sw-code-pilot-retail/abc/scratchpad",
+                "/private/tmp/claude-501/-Users-x-Documents-sw-code-shop-app/abc/scratchpad",
                 "/tmp/claude/-Users-x-Documents-sw-unknown-thing/id"]
         ss = [session("s%07d" % i, cwd=c) for i, c in enumerate(cwds)]
         wa_model.assign_project_names(ss)
-        self.assertEqual([s["project"] for s in ss], ["code-pilot-retail", "resume", "resume", "code-pilot-retail", "thing"])
+        self.assertEqual([s["project"] for s in ss], ["code-shop-app", "resume", "resume", "code-shop-app", "thing"])
 
     def test_same_name_different_owners_still_disambiguated(self):
         ss = [session("a0000000", cwd="/x/one/app"), session("b0000000", cwd="/x/two/app"),
@@ -55,10 +55,10 @@ class Meta(unittest.TestCase):
 class ScratchAndWorktreeLabels(unittest.TestCase):
     def test_scratchpad_worktree_and_nested_hidden_folder(self):
         from wa_common import resolve_cwd, slug_name
-        known = ["pilot-retail", "pilot"]
+        known = ["shop-app", "shop"]
         cases = {
-            "/private/tmp/claude-502/-Users-a-code-pilot-retail/1686886a/scratchpad/qual5/x/run1/.run-worktrees/w1": "pilot-retail",
-            "/Users/a/code/pilot-retail/.hardening/sync-main/.run-worktrees/w2": "pilot-retail",
+            "/private/tmp/claude-502/-Users-a-code-shop-app/0a0b0c0d/scratchpad/qual5/x/run1/.run-worktrees/w1": "shop-app",
+            "/Users/a/code/shop-app/.hardening/sync-main/.run-worktrees/w2": "shop-app",
             "C:\sw\proj\.claude\worktrees\feat-x": "proj",
             "/Users/a/code/plain": "plain",
         }
@@ -80,7 +80,7 @@ class ClaudeMdImports(unittest.TestCase):
                 f.write("intro\n@AGENTS.md\nwrite to me@example.com\n")
             self.assertEqual(count_lines(os.path.join(d, "CLAUDE.md")), 6)          # 3 + imported 3
             self.assertEqual(len(project_files(d)), 1)                              # AGENTS.md now via import only
-        name, _o, _s = resolve_cwd("/Users/a/code/pilot-retail/kb-hard/scratchpad/q1/run1/.run-worktrees/w")
+        name, _o, _s = resolve_cwd("/Users/a/code/shop-app/kb-hard/scratchpad/q1/run1/.run-worktrees/w")
         self.assertEqual(name, "kb-hard")
 
 
