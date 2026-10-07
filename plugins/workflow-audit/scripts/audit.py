@@ -16,6 +16,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import wa_followup  # noqa: E402
+import wa_housekeeping  # noqa: E402
 import wa_model  # noqa: E402
 import wa_registry  # noqa: E402
 from wa_common import day, home_dir  # noqa: E402
@@ -111,6 +112,8 @@ def run(args):
     if prev:
         metrics["followup"] = wa_followup.followup(metrics, prev)
         metrics["followup_from"] = prev
+    metrics.setdefault("meta", {})["housekeeping"] = wa_housekeeping.tidy(
+        home_dir(), cache_dir, os.path.join(workflow_dir(), "runs"), out_dir)
     with open(os.path.join(out_dir, "metrics.json"), "w", encoding="utf8") as f:
         json.dump(metrics, f, indent=1, ensure_ascii=False)
     print(out_dir)

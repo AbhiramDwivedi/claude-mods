@@ -24,6 +24,13 @@ Whether you are faster or more productive. Transcripts can't measure that, and t
 
 Everything runs locally. A Python script reads `~/.claude/projects` and writes to `~/.claude/workflow-audit/`. The report stays on your machine. The only data that reaches a model is what any Claude Code session sends: the compact metrics and a few short excerpts around your corrections, with secret-looking strings redacted.
 
+It keeps nothing longer than Claude Code keeps your transcripts. Claude Code deletes them after `cleanupPeriodDays` (30 unless you've set it). On every run the audit:
+
+- drops cached data for any transcript Claude Code has deleted;
+- deletes the excerpt files (`samples/`) of runs older than that period.
+
+What stays in each run folder is the report, the metrics, the experiments you chose, and the sample verdicts. Those contain short quotes of at most 15 words, kept because the next run compares against them and because the report is your record. Deleting `~/.claude/workflow-audit/` removes all of it.
+
 ## Requirements
 
 Python 3.9 or newer, standard library only. Nothing to `pip install`.

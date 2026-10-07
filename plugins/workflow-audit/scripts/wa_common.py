@@ -101,7 +101,8 @@ def percentile(values, q):
 
 
 def home_dir():
-    return os.path.expanduser("~")
+    # WORKFLOW_AUDIT_HOME lets tests run against a throwaway home instead of the real ~/.claude
+    return os.environ.get("WORKFLOW_AUDIT_HOME") or os.path.expanduser("~")
 
 
 def pct(x, total):

@@ -4,6 +4,7 @@ import json
 import os
 import tempfile
 import unittest
+from unittest import mock
 
 import helpers
 from helpers import MAIN_ID, PRICES, PROJECTS, SELF_ID
@@ -63,6 +64,16 @@ class Agents(unittest.TestCase):
 
 
 class Cli(unittest.TestCase):
+    def setUp(self):
+        # keep housekeeping away from the real ~/.claude/workflow-audit
+        self._home = tempfile.TemporaryDirectory()
+        self._env = mock.patch.dict(os.environ, {"WORKFLOW_AUDIT_HOME": self._home.name})
+        self._env.start()
+
+    def tearDown(self):
+        self._env.stop()
+        self._home.cleanup()
+
     def run_cli(self, *argv):
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):

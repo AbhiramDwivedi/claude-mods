@@ -24,7 +24,7 @@ plugins/workflow-audit/
 - `DIR/samples/NN-<session8>.md`: correction excerpts for the sample readers
 - the last line printed to stdout is `DIR`
 
-Defaults: `--days 30`, `--projects-dir ~/.claude/projects`, `--out ~/.claude/workflow-audit/runs/<YYYYMMDD-HHMMSS>`. The parse cache lives in `~/.claude/workflow-audit/cache/`. A file whose size and mtime haven't changed is not parsed again. The script never writes anywhere under `~/.claude` except `~/.claude/workflow-audit/`.
+Defaults: `--days 30`, `--projects-dir ~/.claude/projects`, `--out ~/.claude/workflow-audit/runs/<YYYYMMDD-HHMMSS>`. The parse cache lives in `~/.claude/workflow-audit/cache/`. A file whose size and mtime haven't changed is not parsed again. The script never writes anywhere under `~/.claude` except `~/.claude/workflow-audit/`. Each run also tidies that folder (`scripts/wa_housekeeping.py`, reported in `meta.housekeeping`): cache entries whose transcript is gone are deleted, and so is `samples/` in run folders older than `cleanupPeriodDays` from `~/.claude/settings.json` (default 30). Only folders named like a run (`YYYYMMDD-HHMMSS`) are touched. `WORKFLOW_AUDIT_HOME` overrides the home folder, for tests.
 
 Test-only options (not for users): `--prices FILE`, `--cache-dir DIR`. A file is in the window when its mtime is within `--days`.
 
