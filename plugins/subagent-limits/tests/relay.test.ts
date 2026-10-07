@@ -84,7 +84,7 @@ test('states the configured limits in the planning rules', async () => {
   const rules = planningRules({ nudge: 200_000, stop: 280_000 })
   expect(rules).toContain('well under 200K tokens')
   expect(rules).toContain('at 280K it starts refusing')
-  expect(rules).toContain('pit-stop:split-work')
+  expect(rules).toContain('subagent-limits:split-work')
 })
 
 test('names an agent by its task, or by its id when it has none', async () => {

@@ -1,4 +1,4 @@
-# claude-mods
+# claude-ops
 
 Three [Claude Code](https://claude.com/claude-code) mods and an audit. Two mods tell you a session is eating your usage limits while you can still stop it, not after you hit the wall. The third keeps subagents from growing large enough to do that. The audit looks back over a month of your sessions and tells you, with numbers, what to change.
 
@@ -10,7 +10,7 @@ The first two each add a dim line above the prompt, with only the warnings in co
 
 [`session-models`](plugins/session-models) tracks the agents in your session: which models they run on, how many are running right now, and how much context each one sends with every request.
 
-[`pit-stop`](plugins/pit-stop) acts on that last number. It tells the main agent how to size and split work. When a subagent's context grows large, it calls the subagent in for a pit stop: the agent writes a handoff note, and a fresh agent goes back out with it. Past a hard limit it refuses the subagent's tools.
+[`subagent-limits`](plugins/subagent-limits) acts on that last number. It tells the main agent how to size and split work. When a subagent's context grows large, it calls the subagent in for a pit stop: the agent writes a handoff note, and a fresh agent goes back out with it. Past a hard limit it refuses the subagent's tools.
 
 ## Why these exist
 
@@ -33,7 +33,7 @@ model: Fable · agents: Fable (6, 5 live), Opus (27), Sonnet (1) · ⚠ ctx 645K
 
 Your agents have drifted onto your most expensive model, one of them is carrying a huge context, and at this pace the 5-hour window runs out in an hour and a half. You'd see all of that hours before the wall, while it's still cheap to fix.
 
-pit-stop is the exception. The other two are the gauges and the road signs, and pit-stop is the pit crew. It changes what your agents do, so install it only if you want that.
+subagent-limits is the exception. The other two are the gauges and the road signs, and subagent-limits is the pit crew. It changes what your agents do, so install it only if you want that.
 
 [`workflow-audit`](plugins/workflow-audit) is the post-race review. The mods watch one session at a time; the audit reads a month of your transcripts and runs as a command, `/workflow-audit`, in its own session. It finds where your spend and rework go, checks your habits against current advice from Anthropic's docs and staff (dated, graded by evidence, and marked when later advice reversed it), and gives you at most five findings, each with one experiment to try. The next run tells you whether the experiment worked. It needs Python 3.9 or newer; everything stays on your machine.
 
@@ -42,18 +42,20 @@ pit-stop is the exception. The other two are the gauges and the road signs, and 
 You need Claude Code 2.1.287 or newer, the first release with mods. The mod API is early access and can change between releases.
 
 ```
-/plugin marketplace add AbhiramDwivedi/claude-mods
-/plugin install usage-limits@claude-mods
-/plugin install session-models@claude-mods
-/plugin install pit-stop@claude-mods
-/plugin install workflow-audit@claude-mods
+/plugin marketplace add AbhiramDwivedi/claude-ops
+/plugin install usage-limits@claude-ops
+/plugin install session-models@claude-ops
+/plugin install subagent-limits@claude-ops
+/plugin install workflow-audit@claude-ops
 ```
 
 The mods load when your next session starts.
 
-To get updates automatically, including the audit's advice catalog as models and Claude Code change, run `/plugin`, open **Marketplaces**, select claude-mods and choose **Enable auto-update**. It is off by default for marketplaces outside Anthropic's own.
+If you installed these from the earlier claude-mods marketplace, the marketplace is now claude-ops and pit-stop is now subagent-limits. Remove the old marketplace with `/plugin marketplace remove claude-mods`, then run the commands above. If you changed pit-stop's limits, set them again on subagent-limits.
 
-`/plugin install` installs for your user by default, so a mod runs in every project. Keep it that way for usage-limits and session-models. Your limits are shared by every session you run, and the session burning through them may be in a project you didn't think to set up. pit-stop changes what agents do, so you may prefer `claude plugin install pit-stop@claude-mods --scope project` in the projects you want it in.
+To get updates automatically, including the audit's advice catalog as models and Claude Code change, run `/plugin`, open **Marketplaces**, select claude-ops and choose **Enable auto-update**. It is off by default for marketplaces outside Anthropic's own.
+
+`/plugin install` installs for your user by default, so a mod runs in every project. Keep it that way for usage-limits and session-models. Your limits are shared by every session you run, and the session burning through them may be in a project you didn't think to set up. subagent-limits changes what agents do, so you may prefer `claude plugin install subagent-limits@claude-ops --scope project` in the projects you want it in.
 
 Each threshold appears as a row in `/config`. You can also set it under `pluginConfigs` in `~/.claude/settings.json`.
 
@@ -63,9 +65,9 @@ Each threshold appears as a row in `/config`. You can also set it under `pluginC
 | usage-limits | `rateWindowMinutes` | 30 | Sets how far back the 5-hour burn rate looks (10 to 300). |
 | session-models | `liveAgentsWarn` | 6 | Warns when this many agents run at once, counting the main thread. |
 | session-models | `contextWarnK` | 300 | Warns when a running agent sends this many thousand tokens of context per request. |
-| pit-stop | `nudgeAtK` | 300 | Asks a subagent to checkpoint when its requests carry this many thousand tokens of context. |
-| pit-stop | `stopAtK` | 450 | Gives a subagent 8 tool calls to checkpoint past this many thousand tokens, then refuses its tools. |
-| pit-stop | `cacheNotes` | on | Tells a subagent when its prompt cache expired during a long pause. The toast to you stays either way. |
+| subagent-limits | `nudgeAtK` | 300 | Asks a subagent to checkpoint when its requests carry this many thousand tokens of context. |
+| subagent-limits | `stopAtK` | 450 | Gives a subagent 8 tool calls to checkpoint past this many thousand tokens, then refuses its tools. |
+| subagent-limits | `cacheNotes` | on | Tells a subagent when its prompt cache expired during a long pause. The toast to you stays either way. |
 
 Claude Code also has a built-in mod worth turning on alongside these. "You should know" runs a side agent that points out things you or Claude may have missed. Enable it with `/plugin enable cc-plugin-you-should-know@builtin`. It needs a first-party session with telemetry on.
 
@@ -95,11 +97,11 @@ Claude Code also has a built-in mod worth turning on alongside these. "You shoul
 
 `⚠ ctx 910K` is the largest context any running agent sent with its last request. The agent pays for that context again on every request, so a handful at this size will drain a window fast. Each agent gets one toast when it first crosses `contextWarnK`.
 
-## What pit-stop does
+## What subagent-limits does
 
-session-models shows you an agent carrying a huge context. pit-stop keeps agents from getting there. The main agent still decides how to split the work, because only it knows the task. The mod gives it the rules and enforces two limits.
+session-models shows you an agent carrying a huge context. subagent-limits keeps agents from getting there. The main agent still decides how to split the work, because only it knows the task. The mod gives it the rules and enforces two limits.
 
-The main agent gets a short section in its system prompt. It says to give each agent one phase of work and to run agents in parallel only when they edit different files. When they would share files, it says to run a relay instead: one fresh agent per phase, each starting from the last one's handoff note. The `pit-stop:split-work` skill has the longer version, with templates for briefs and handoff notes and a guide to picking each agent's model.
+The main agent gets a short section in its system prompt. It says to give each agent one phase of work and to run agents in parallel only when they edit different files. When they would share files, it says to run a relay instead: one fresh agent per phase, each starting from the last one's handoff note. The `subagent-limits:split-work` skill has the longer version, with templates for briefs and handoff notes and a guide to picking each agent's model.
 
 The section also tells the main agent to set a model on every subagent. An agent started without one runs on the session's model unless you set a fallback. If your session runs on an expensive model, set `CLAUDE_CODE_SUBAGENT_MODEL` in the `env` block of `~/.claude/settings.json`, for example to `sonnet`.
 
@@ -127,29 +129,29 @@ Burn rate is measured in percent of your window, not tokens. However your plan w
 
 The agent counts reset on `/clear`. They survive a mod reload but not a restart.
 
-pit-stop never limits the main thread, which Claude Code compacts on its own. It doesn't limit forks either, because a fork starts with its parent's whole context and shares its prompt cache.
+subagent-limits never limits the main thread, which Claude Code compacts on its own. It doesn't limit forks either, because a fork starts with its parent's whole context and shares its prompt cache.
 
-pit-stop keeps its counts inside the mod, so a reload starts them over. After one, an agent may be asked to checkpoint a second time, and a fork that is still running loses its exemption.
+subagent-limits keeps its counts inside the mod, so a reload starts them over. After one, an agent may be asked to checkpoint a second time, and a fork that is still running loses its exemption.
 
 ## Develop
 
 To run the mods from a clone instead of the marketplace, pass the folders for one session:
 
 ```
-claude --plugin-dir ./plugins/usage-limits --plugin-dir ./plugins/session-models --plugin-dir ./plugins/pit-stop --plugin-dir ./plugins/workflow-audit
+claude --plugin-dir ./plugins/usage-limits --plugin-dir ./plugins/session-models --plugin-dir ./plugins/subagent-limits --plugin-dir ./plugins/workflow-audit
 ```
 
 Or list them in the `env` block of `~/.claude/settings.json`. Separate the paths with `;` on Windows and `:` elsewhere:
 
 ```json
-{ "env": { "CLAUDE_CODE_PLUGIN_DIRS": "/path/to/claude-mods/plugins/usage-limits:/path/to/claude-mods/plugins/session-models:/path/to/claude-mods/plugins/pit-stop" } }
+{ "env": { "CLAUDE_CODE_PLUGIN_DIRS": "/path/to/claude-ops/plugins/usage-limits:/path/to/claude-ops/plugins/session-models:/path/to/claude-ops/plugins/subagent-limits" } }
 ```
 
 An interactive session watches those folders and reloads a mod when you save a file.
 
 Load each mod one way only. If it is in `CLAUDE_CODE_PLUGIN_DIRS` and also installed from the marketplace, it runs twice, with every line and toast doubled. `claude plugin list` shows both copies.
 
-[`tools/ctx-study`](tools/ctx-study) reads your local session transcripts and reports how large your subagents grow, how much of the cost comes above pit-stop's limits, and whether its handoffs pay off. Run it weekly to check the limits still suit how you work.
+[`tools/ctx-study`](tools/ctx-study) reads your local session transcripts and reports how large your subagents grow, how much of the cost comes above the subagent-limits thresholds, and whether its handoffs pay off. Run it weekly to check the limits still suit how you work.
 
 Before you commit:
 

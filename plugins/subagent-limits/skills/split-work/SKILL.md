@@ -5,7 +5,7 @@ description: How to size and split work across subagents so no single agent grow
 
 # Split work across agents
 
-You decide how work is split. The pit-stop plugin measures each subagent's context and enforces two limits: at the first it asks the agent to checkpoint, and past the second it refuses the agent's tools. Those limits are a backstop for a bad split. A good split never reaches them.
+You decide how work is split. The subagent-limits plugin measures each subagent's context and enforces two limits: at the first it asks the agent to checkpoint, and past the second it refuses the agent's tools. Those limits are a backstop for a bad split. A good split never reaches them.
 
 ## Why size matters
 

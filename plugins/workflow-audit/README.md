@@ -38,11 +38,11 @@ Python 3.9 or newer, standard library only. Nothing to `pip install`.
 ## Install
 
 ```
-/plugin marketplace add AbhiramDwivedi/claude-mods
-/plugin install workflow-audit@claude-mods
+/plugin marketplace add AbhiramDwivedi/claude-ops
+/plugin install workflow-audit@claude-ops
 ```
 
-The advice catalog changes as models and Claude Code change. To get updates automatically, run `/plugin`, open **Marketplaces**, select claude-mods and choose **Enable auto-update**. It is off by default for marketplaces outside Anthropic's own.
+The advice catalog changes as models and Claude Code change. To get updates automatically, run `/plugin`, open **Marketplaces**, select claude-ops and choose **Enable auto-update**. It is off by default for marketplaces outside Anthropic's own.
 
 ## Cost of a run
 

@@ -41,7 +41,7 @@ export type Verdict =
 // tool calls an agent keeps after passing the stop limit, to commit and write its handoff note
 export const WIND_DOWN_CALLS = 8
 // marks text this mod wrote
-export const MARK = '[pit-stop]'
+export const MARK = '[subagent-limits]'
 // a brief that already carries the contract (a successor's, copied from its predecessor) gets no second copy;
 // one that merely quotes a note still gets it
 export const CONTRACT_HEAD = `${MARK} Context budget.`
@@ -134,13 +134,13 @@ export function refusal(context: number, limits: Limits): string {
 // the main agent decides the split; this tells it what the mod enforces and how to work with it
 export function planningRules(limits: Limits): string {
   return `# Sizing delegated work
-The pit-stop plugin is installed. You decide how work is split; the plugin only measures each subagent's context and enforces two limits. When you hand work to subagents:
+The subagent-limits plugin is installed. You decide how work is split; the plugin only measures each subagent's context and enforces two limits. When you hand work to subagents:
 - Give each agent one phase it can finish well under ${tokens(limits.nudge)} tokens of context. At ${tokens(limits.nudge)} the plugin asks the agent to checkpoint, and at ${tokens(limits.stop)} it starts refusing the agent's tools.
 - Run agents in parallel only when they edit different files. When they would share files, run a relay instead: one fresh agent per phase, each starting from the previous one's handoff note.
 - Fresh agents often read 100K tokens or more before their first edit. Cut that with a brief that names the exact files, functions and line ranges to read, the test command, and what done means.
 - Set \`model\` on every Agent call.
 - A final report that starts with "CHECKPOINT:" means the agent stopped on purpose with work left. Start a fresh agent from its handoff note rather than resuming the old one.
-For brief and handoff templates, load the pit-stop:split-work skill.`
+For brief and handoff templates, load the subagent-limits:split-work skill.`
 }
 
 export function withContract(prompt: string): string {
@@ -181,7 +181,7 @@ export const register: Register = (on, options) => {
   on('prompt.compose', async ($, e, next) => {
     const composed = await next(e)
     if (!e.tools.includes('Agent') || e.traits.includes('bare')) return composed
-    const rules = { id: 'pit-stop:planning', text: planningRules(limits), scope: 'session' } as const
+    const rules = { id: 'subagent-limits:planning', text: planningRules(limits), scope: 'session' } as const
     return { sections: [...composed.sections, rules] }
   })
 

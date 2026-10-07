@@ -6,7 +6,7 @@
     "name": "Abhiram Dwivedi",
     "url": "https://github.com/AbhiramDwivedi"
   },
-  "homepage": "https://github.com/AbhiramDwivedi/claude-mods/tree/main/plugins/usage-limits",
+  "homepage": "https://github.com/AbhiramDwivedi/claude-ops/tree/main/plugins/usage-limits",
   "license": "MIT",
   "userConfig": {
     "warnAtPercent": {

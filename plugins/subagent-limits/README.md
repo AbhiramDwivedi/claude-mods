@@ -1,4 +1,4 @@
-# pit-stop
+# subagent-limits
 
 Keeps subagents small. The main agent still decides how work is split. This mod tells it how to split well, watches each subagent's context, and steps in when one grows too large.
 
@@ -7,7 +7,7 @@ Keeps subagents small. The main agent still decides how work is split. This mod 
 - When a subagent's requests carry `nudgeAtK` thousand tokens of context, it asks the agent to finish its current item and checkpoint.
 - Past `stopAtK`, the agent gets 8 more tool calls to commit and write its note, and then every tool call is refused.
 - When a subagent waits over 4 minutes on one of its own tool calls and its next request rebuilds most of a large context (100K tokens or more), its prompt cache expired. The mod shows you a toast and tells that agent once, with the measured size and pause, so it checks on long jobs sooner. Agents whose caches never expire never see it.
-- It ships the `pit-stop:split-work` skill, with templates for briefs and handoff notes.
+- It ships the `subagent-limits:split-work` skill, with templates for briefs and handoff notes.
 
 | Setting | Default | What it does |
 | --- | --- | --- |

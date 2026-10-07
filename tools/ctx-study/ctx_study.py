@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ctx-study: how large Claude Code subagents get, and whether pit-stop handoffs work.
+"""ctx-study: how large Claude Code subagents get, and whether subagent-limits handoffs work.
 
 Reads ~/.claude/projects/<project>/<session>/subagents/agent-*.jsonl (read-only) and writes
 report-YYYY-MM-DD.md, agents-YYYY-MM-DD.csv and a history.csv line into --out.
@@ -19,14 +19,17 @@ EDIT_TOOLS = {'Edit', 'Write', 'MultiEdit', 'NotebookEdit'}
 SIM_LIMITS = (200_000, 250_000, 300_000, 350_000, 450_000)
 DEFAULT_F = 0.6
 
-# Marker strings from plugins/pit-stop/hooks/register.ts. The note regexes demand concrete
+# Marker strings from plugins/subagent-limits/hooks/register.ts. The plugin was called pit-stop until
+# 0.3.0, so older transcripts carry the [pit-stop] tag; MARKS matches both. The note regexes demand concrete
 # numbers, so a transcript that merely read the TypeScript source (`${tokens(context)}`) does not match.
-CONTRACT_HEAD = '[pit-stop] Context budget.'
+MARKS = ('[subagent-limits]', '[pit-stop]')
+MARK_RE = r'\[(?:subagent-limits|pit-stop)\]'
+CONTRACT_HEADS = tuple(m + ' Context budget.' for m in MARKS)
 CONTRACT_BODY = 'Every request you make re-sends your whole context'
 TOK = r'(\d+(?:\.\d)?)([KM])'
-NUDGE_RE = re.compile(r'\[pit-stop\] Your context has reached ' + TOK + r' tokens')
-WIND_RE = re.compile(r'\[pit-stop\] Your context is ' + TOK + r' tokens, past the ' + TOK + r' limit')
-REFUSE_RE = re.compile(r'\[pit-stop\] Refused: your context \(' + TOK + r' tokens\) is past the ' + TOK + r' limit')
+NUDGE_RE = re.compile(MARK_RE + r' Your context has reached ' + TOK + r' tokens')
+WIND_RE = re.compile(MARK_RE + r' Your context is ' + TOK + r' tokens, past the ' + TOK + r' limit')
+REFUSE_RE = re.compile(MARK_RE + r' Refused: your context \(' + TOK + r' tokens\) is past the ' + TOK + r' limit')
 CHECKPOINT_RE = re.compile(r'^[\s*#_>`"]*CHECKPOINT\s*:', re.I)
 PATH_RE = re.compile(r'[\w.~:-]*[\\/][\w./\\~:-]+\.\w{1,5}|\b[\w.-]+\.(?:md|txt)\b')
 NOTE_WORDS = ('handoff', 'hand-off', 'checkpoint', 'note', 'relay')
@@ -131,8 +134,8 @@ def parse_agent(path, limits):
                     if c.get('type') == 'text' and c.get('text'):
                         texts.setdefault(k, []).append(c['text'])
                 continue
-            # pit-stop notes reach the agent as tool results or attachments, never in its own output
-            if '[pit-stop]' in line:
+            # subagent-limits notes reach the agent as tool results or attachments, never in its own output
+            if any(m in line for m in MARKS):
                 key = d.get('uuid') or line
                 if key in seen_mark_lines:
                     continue
@@ -172,7 +175,7 @@ def parse_agent(path, limits):
         start_ctx=ctx[0], R_edit=ctx[edit_at] if edit_at is not None else None,
         n_before_edit=edit_at, peak_ctx=peak, n_requests=len(ctx),
         weighted_total=sum(wts),
-        contract=CONTRACT_HEAD in brief and CONTRACT_BODY in brief,
+        contract=any(h in brief for h in CONTRACT_HEADS) and CONTRACT_BODY in brief,
         nudges=len(marks['nudge']), wind_downs=len(marks['wind']), refusals=len(marks['refuse']),
         checkpoint=bool(CHECKPOINT_RE.match(final_text)),
     )
@@ -189,7 +192,7 @@ def parse_agent(path, limits):
     return r
 
 
-# ---------- pit-stop handoff pairing ----------
+# ---------- subagent-limits handoff pairing ----------
 
 def shingles(text, n=8):
     w = re.findall(r'\w+', text.lower())
@@ -208,7 +211,7 @@ def note_paths(report):
 
 def references(pred, cand):
     """How the candidate's brief references the predecessor's handoff, or None."""
-    brief = cand['_brief'].split(CONTRACT_HEAD)[0]     # the appended contract is not the brief's own text
+    brief = re.split('|'.join(map(re.escape, CONTRACT_HEADS)), cand['_brief'])[0]     # the appended contract is not the brief's own text
     low = brief.lower().replace('\\', '/')
     if pred['agent'] in brief:
         return 'agent-id'
@@ -221,7 +224,7 @@ def references(pred, cand):
 
 
 def pair_handoffs(agents):
-    """Predecessor = non-fork agent ending with CHECKPOINT or refused by pit-stop. Successor = the first later
+    """Predecessor = non-fork agent ending with CHECKPOINT or refused by subagent-limits. Successor = the first later
     non-fork agent in the same parent session (started after the predecessor's last event) whose brief
     names the predecessor's agent id, a note file from its report, or shares >=3 8-word runs with it."""
     by_session = {}
@@ -445,9 +448,9 @@ def main(argv=None):
                 add(f'| {name} | {len(g)} | {K(med([a["start_ctx"] for a in g]))} | {K(med([a["R_edit"] for a in g]))} | '
                     f'{K(med([a["peak_ctx"] for a in g]))} | {over(g, L1)} | {pct(gw / tw if tw else None)} | {pct(share(g, L1))} |')
 
-    # ---- pit-stop ----
+    # ---- subagent-limits ----
     add('')
-    add('## pit-stop')
+    add('## subagent-limits')
     n_contract = sum(a['contract'] for a in nf)
     nudged = [a for a in nf if a['nudges']]
     wound = [a for a in nf if a['wind_downs']]
