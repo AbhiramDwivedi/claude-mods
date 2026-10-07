@@ -94,3 +94,10 @@ class CleanedUpWorktrees(unittest.TestCase):
             self.assertEqual(os.path.normcase(readable_root(gone)), os.path.normcase(os.path.join(d, "kb")))
             really_gone = os.path.join(d, "renamed-project")
             self.assertEqual(readable_root(really_gone), really_gone)
+
+
+class ProjectRootWins(unittest.TestCase):
+    def test_root_folder_reported_over_scratch_copy(self):
+        from wa_m_context import is_root
+        self.assertTrue(is_root(r"C:\sw\resume", "resume"))
+        self.assertFalse(is_root(r"C:\Users\a\AppData\Local\Temp\claude\C--sw-resume\s1\scratchpad\sbx2", "resume"))

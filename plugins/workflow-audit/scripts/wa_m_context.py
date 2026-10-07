@@ -2,7 +2,7 @@
 import os
 import re
 
-from wa_common import iso, owner_root
+from wa_common import iso, owner_root, path_parts
 from wa_registry import metric, insufficient
 
 OVER_LINES = 200
@@ -67,6 +67,12 @@ def readable_root(cwd):
     return root if root and os.path.isdir(root) else cwd
 
 
+def is_root(cwd, name):
+    """True when cwd is the project's own folder, not a scratchpad or worktree that maps to it."""
+    parts = path_parts(cwd)
+    return bool(parts) and parts[-1].lower() == (name or "").lower()
+
+
 @metric
 def claude_md(ctx):
     if not ctx.sessions:
@@ -89,8 +95,12 @@ def claude_md(ctx):
         plines = sum(v["lines"] for v in files.values())
         total = glines + plines
         weighted += total * sessions_per_cwd[cwd]
-        row = projects.setdefault(name, {"cwd": cwd, "project_lines": plines, "loaded_lines": total,
-                                         "sessions": 0, "files": files})
+        entry = {"cwd": cwd, "project_lines": plines, "loaded_lines": total, "sessions": 0, "files": files}
+        row = projects.setdefault(name, entry)
+        if row is not entry and is_root(cwd, name) and not is_root(row["cwd"], name):
+            # a scratchpad or worktree was seen first; the project's own folder is the one to report
+            entry["sessions"] = row["sessions"]
+            row = projects[name] = entry
         row["sessions"] += sessions_per_cwd[cwd]
         paths.extend(p for p in files if p not in paths)
         mt.update({p: v["mtime"] for p, v in files.items()})
