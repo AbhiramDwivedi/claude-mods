@@ -38,7 +38,10 @@ Exit codes: 0 ok, 2 no transcripts found, 3 bad arguments. Errors go to stderr a
 - Human text: `type=user` records whose `message.content` is a string or text blocks. Exclude records with `toolUseResult` or `sourceToolAssistantUUID`, and records with `isMeta` or `isCompactSummary`. Also exclude strings starting with `<task-notification`, `<local-command-`, `<command-name>`, `<system-reminder>`, `[Usage limit` or `[Cross-session`, and messages relayed from other agents ("Another Claude session sent a message", "The coordinator sent a message").
 - A slash command shows up as `<command-name>/x</command-name>` inside a user string. Count it as a human message, but report it as a command.
 - Messages typed while Claude is working are not user records. They are `attachment.type == "queued_command"` with `origin.kind == "human"` and the text in `prompt`. They must be counted.
-- Interrupt: a text block `[Request interrupted by user`. Tool rejection: a `tool_result` with `is_error` and the text "doesn't want to proceed".
+- Interrupt: a text block `[Request interrupted by user`. Tool rejection: a `user` tool_result record with top-level `toolDenialKind == "user-rejected"`; older builds without the field are matched on `is_error` and the text "doesn't want to proceed".
+- Denials: any `user` tool_result record with a top-level `toolDenialKind` (`permission-rule`, `user-rejected`, `automode-blocked`, `automode-unavailable`, `interrupted`). The block's `tool_use_id` links it to the denied `tool_use`, which carries the command. Auto mode's reason is in the result text as `Reason: [Git Destructive]`.
+- Effort: a top-level `effort` on assistant records, main and subagent files alike; `perTurnEffort` is the fallback and is often null.
+- `/rewind` leaves no marker of its own. It shows up only as a `<command-name>/rewind</command-name>` user record.
 - Compaction: a `system` record with `subtype == "compact_boundary"`.
 - Usage: `message.usage` on assistant records (`input_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`, `output_tokens`, and `cache_creation.ephemeral_5m_input_tokens` / `ephemeral_1h_input_tokens`). One API response spans several records, so dedupe by `message.id`.
 - Model: `message.model` on assistant records. Claude Code version: a `version` field on records.
@@ -58,6 +61,10 @@ Implementation notes (step 1b, deviations and choices):
 - `rework.insights.auc.dissatisfied_vs_not` gives rank AUC of the per-session correction rate (tight and loose) over interactive sessions that /insights faceted; `n_joined` counts every faceted session in the window, `n_interactive_joined` the interactive ones. Needs 20+ interactive joined, else `auc` is `insufficient`.
 - `samples` are written by the metric into `<run>/samples/` (needs `ctx.out_dir`): up to 8 interactive sessions with 2+ tight corrections. Secrets are redacted (`sk-`/token prefixes, `password=`/`token=` values, 32+ hex, 32+ char runs mixing letters and digits).
 - `practices.usage.permission_modes.sessions_by_mode_seen` counts sessions in which each permissionMode appeared. Plan mode uses = transitions into `plan` plus EnterPlanMode/ExitPlanMode tool uses.
+- Metrics version 7. The parse cache is version 3. Subagent files now keep their edit tool uses (Edit, Write, MultiEdit, NotebookEdit) so edit runs and rewinds can see them; nothing else reads subagent tools.
+- Shape triage (`wa_m_permissions.classify`), first match wins: `read_only` when every segment's program is read-only (`ls`, `cat`, `grep`, `cd`, `git status`/`log`/`diff`, `Get-Content` and the like) and nothing is redirected to a file; `chained` for `&&`, `||`, `;` or `|`; `inline_interpreter` for `python -c`, `node -e`, `bash -c`, `powershell -Command`; `absolute_path` when the program, or an interpreter's script argument, is an absolute path; else `other`. Quoted strings are blanked before splitting, so `python -c 'a; b'` is one segment.
+- Review rule: a run is reviewed when, after its last edit and before the next human message, an Agent call's description matches review/verif/audit/check or a `code-review`, `security-review` or `review` skill runs, or when the next human message asks for a review.
+- Denials count every session, because pipeline runs are what the triage is for. Effort and review count interactive sessions only.
 - `followup` is a list; `followup_from` names the run dir used. The previous run is searched under `~/.claude/workflow-audit/runs` and the parent folder of `--out`. Each row carries `reason` when `now` is null.
 
 Each metric carries its numbers and its `n`. Where it points at sessions, it carries up to 10 examples as `{session, session8, project, date, value}`. Project is the readable name (the last path part of the session's `cwd`), not the folder slug. Every metric that a catalog entry or an experiment can reference has a stable dotted key, listed below. The file is nested: the key `cost.cache.waste_pct` is `metrics["cost"]["cache"]["waste_pct"]`. A metric with too little data still appears, with `"insufficient": true` and the reason.
@@ -84,6 +91,11 @@ Each metric carries its numbers and its `n`. Where it points at sessions, it car
 | `sessions.shape` | interactive sessions, active minutes median, sessions with 2+ compactions, human messages per session |
 | `verification.check_after_last_edit` | of sessions that edited files, the share that ran a test/build/lint/typecheck command after the last edit |
 | `practices.usage` | plan mode uses, permission modes, interrupts, queued messages, /clear, /rewind, worktrees, skills used, top slash commands |
+| `practices.usage.commands_used` | every slash command (with `/`) and skill (without) used in the window, with counts; not cut to a top N |
+| `practices.usage.rewinds_after_untracked_edits` | `{rewinds, after_untracked_edits, with_git_baseline}`: /rewinds that followed Bash file changes or subagent edits, and how many of those had a git commit, stash or new branch earlier in the session |
+| `permissions.denials` | tool denials in all sessions: `by_kind` (main/subagent), `by_session_kind`, `classifier_reasons`, `by_project`, `by_shape` and `read_only_top` for shell commands denied by a rule or by the person |
+| `effort.by_model` | interactive sessions (`main`) and their subagents (`subagent`) per model per effort level, plus `ultrathink_messages` and `effort_commands` |
+| `verification.review_after_edits` | runs of 20+ edits between two human messages, and how many had a review after them |
 | `samples` | `[{file, session, project, corrections}]` |
 | `followup` | present when an earlier run left `experiments.json`: each experiment with baseline, target and the value now |
 
@@ -112,10 +124,13 @@ A model id resolves to the longest `models` key it starts with. An id with no ma
 ## catalog/practices.json
 
 ```json
-{"updated": "2026-10-06", "practices": [
+{"updated": "2026-10-08", "practices": [
  {"id": "explicit-subagent-model", "claim": "...", "improves": ["cost"],
   "source": {"url": "...", "author": "...", "kind": "docs|staff-post|research|blog", "date": "2026-01-31"},
-  "grade": "measured|anthropic-advice|opinion", "models": "any", "status": "current|superseded|contested",
+  "grade": "measured|anthropic-advice|anthropic-staff|opinion", "models": "any", "status": "current|superseded|contested",
   "superseded_by": null, "metric": "agents.explicit_model_rate", "check": "how to read the metric against this practice",
-  "notes": "..."}]}
+  "notes": "...",
+  "suggest": [{"name": "/fewer-permission-prompts", "kind": "command|skill|plugin", "what": "one short sentence", "url": "https://code.claude.com/docs/en/..."}]}]}
 ```
+
+`anthropic-staff` is a first-hand post by Anthropic staff (Boris Cherny, Thariq Shihipar). It outweighs older docs: the docs entry becomes `superseded`, with `superseded_by` naming the post's entry. `superseded_by` must name an existing id. A practice is a gap only when transcripts show the failure it names; absence is never a gap. `suggest` is optional: official Anthropic commands, skills and plugins only, shown only when that entry's gap is found, and skipped when `practices.usage.commands_used` or `meta.plugins_installed` shows the person already uses it. `metric` is a key from the metric table above, or `null` when only the sample readers can judge it. `tests/test_catalog.py` checks all of this.

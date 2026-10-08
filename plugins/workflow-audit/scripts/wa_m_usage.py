@@ -9,6 +9,7 @@ from wa_registry import metric, example, insufficient
 ACTIVE_GAP_MIN = 10
 EDIT_TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
 SHELL_TOOLS = ("Bash", "PowerShell")
+AGENT_NAMES = ("Agent", "Task")
 CHECK = re.compile(
     r"\b(pytest|py\.test|unittest|tox|nox|"
     r"(npm|pnpm|yarn|bun)\s+(run\s+)?(test|build|lint|typecheck|check)\b|jest|vitest|"
@@ -81,6 +82,108 @@ def check_after_last_edit(ctx):
         "top_unchecked": [example(s, "%d edits" % n) for n, s in missed[:10]]}}
 
 
+LONG_RUN_EDITS = 20
+REVIEW_AGENT = re.compile(r"review|verif|audit|check", re.I)
+REVIEW_SKILL = re.compile(r"(?:^|[:/])(?:code-review|security-review|review)$", re.I)
+REVIEW_WORD = re.compile(r"\breview\b", re.I)
+
+
+def _is_review_request(h):
+    return bool(REVIEW_WORD.search(h.get("cmd") or "") or REVIEW_WORD.search(h.get("text") or ""))
+
+
+def edit_stamps(s):
+    """Timestamps of file edits in the main thread and in its subagents."""
+    out = [t["ts"] for t in s["tools"] if t["name"] in EDIT_TOOLS and t["ts"]]
+    for u in s.get("subs", []):
+        out += [t["ts"] for t in u["tools"] if t["name"] in EDIT_TOOLS and t["ts"]]
+    return sorted(out)
+
+
+def edit_runs(s):
+    """[(edit count, last edit ts, next human or None)] for each stretch between two human messages."""
+    hs = sorted([h for h in s["humans"] if h["ts"]], key=lambda h: h["ts"])
+    stamps = edit_stamps(s)
+    bounds = [h["ts"] for h in hs]
+    runs = []
+    for i in range(len(hs) + 1):
+        lo = bounds[i - 1] if i else float("-inf")
+        hi = bounds[i] if i < len(bounds) else float("inf")
+        inside = [t for t in stamps if lo <= t < hi]
+        if inside:
+            runs.append((len(inside), inside[-1], hs[i] if i < len(hs) else None))
+    return runs
+
+
+def run_reviewed(s, last_ts, nxt):
+    hi = nxt["ts"] if nxt else float("inf")
+    for t in s["tools"]:
+        if not (last_ts < t["ts"] < hi):
+            continue
+        if t["name"] in AGENT_NAMES and REVIEW_AGENT.search(t.get("desc") or ""):
+            return True
+        if t["name"] == "Skill" and REVIEW_SKILL.search(t.get("skill") or ""):
+            return True
+    return bool(nxt and _is_review_request(nxt))
+
+
+@metric
+def review_after_edits(ctx):
+    sess = [s for s in ctx.sessions if s["interactive"]]
+    long_runs = reviewed = 0
+    with_long, bad = set(), []
+    for s in sess:
+        for n, last, nxt in edit_runs(s):
+            if n < LONG_RUN_EDITS:
+                continue
+            long_runs += 1
+            with_long.add(s["id"])
+            if run_reviewed(s, last, nxt):
+                reviewed += 1
+            else:
+                bad.append((n, s))
+    bad.sort(key=lambda x: -x[0])
+    return {"verification.review_after_edits": {
+        "n": len(sess), "threshold_edits": LONG_RUN_EDITS, "sessions_with_long_runs": len(with_long),
+        "long_runs": long_runs, "reviewed_runs": reviewed,
+        "share_reviewed": round(reviewed / long_runs, 4) if long_runs else None,
+        "examples": [example(s, "%d edits, unreviewed" % n) for n, s in bad[:10]]}}
+
+
+MODIFY = re.compile(
+    r"(?:^|[\s;&|(])(?:rm|mv|cp)\b|\bsed\s+(?:-\S+\s+)*-\S*i|\b(?:Remove-Item|Move-Item|Set-Content|Add-Content|Out-File)\b|"
+    r"\bgit\s+(?:checkout\s+--|restore|reset)\b", re.I)
+REDIRECT_NOISE = re.compile(r"\d*>&\d|\d*>>?\s*/dev/null|&>\s*/dev/null|\d*>\s*\$null", re.I)
+GIT_BASELINE = re.compile(r"\bgit\s+(?:commit|stash|checkout\s+-b|switch\s+-c)\b", re.I)
+QUOTED = re.compile(r"\"[^\"]*\"|'[^']*'")
+
+
+def modifies_files(cmd):
+    flat = REDIRECT_NOISE.sub(" ", QUOTED.sub('""', cmd or ""))
+    return bool(MODIFY.search(cmd or "") or ">" in flat)
+
+
+def rewind_stats(sess):
+    rewinds = untracked = baseline = 0
+    for s in sess:
+        hs = sorted([h for h in s["humans"] if h["ts"]], key=lambda h: h["ts"])
+        sub_edits = [t["ts"] for u in s.get("subs", []) for t in u["tools"] if t["name"] in EDIT_TOOLS and t["ts"]]
+        for i, h in enumerate(hs):
+            if h["kind"] != "command" or h.get("cmd") != "/rewind":
+                continue
+            rewinds += 1
+            lo = hs[i - 1]["ts"] if i else float("-inf")
+            risky = any(t["name"] in SHELL_TOOLS and lo < t["ts"] < h["ts"] and modifies_files(t.get("cmd"))
+                        for t in s["tools"]) or any(lo < x < h["ts"] for x in sub_edits)
+            if not risky:
+                continue
+            untracked += 1
+            if any(t["name"] in SHELL_TOOLS and t["ts"] < h["ts"] and GIT_BASELINE.search(t.get("cmd") or "")
+                   for t in s["tools"]):
+                baseline += 1
+    return {"rewinds": rewinds, "after_untracked_edits": untracked, "with_git_baseline": baseline}
+
+
 def _top(counter, n=10):
     return dict(sorted(counter.items(), key=lambda kv: (-kv[1], kv[0]))[:n])
 
@@ -120,4 +223,6 @@ def practices_usage(ctx):
         "commands": {"/clear": cmds.get("/clear", 0), "/rewind": cmds.get("/rewind", 0),
                      "/compact": cmds.get("/compact", 0)},
         "worktree_sessions": worktree,
-        "skills_used": _top(skills), "top_slash_commands": _top(cmds)}}
+        "skills_used": _top(skills), "top_slash_commands": _top(cmds),
+        "commands_used": dict(sorted({**cmds, **skills}.items(), key=lambda kv: (-kv[1], kv[0]))),
+        "rewinds_after_untracked_edits": rewind_stats(sess)}}

@@ -22,7 +22,7 @@ import wa_registry  # noqa: E402
 from wa_common import day, home_dir  # noqa: E402
 from wa_prices import Prices  # noqa: E402
 
-METRIC_MODULES = ["wa_m_meta", "wa_m_cost", "wa_m_agents", "wa_m_context", "wa_m_rework", "wa_m_usage"]
+METRIC_MODULES = ["wa_m_meta", "wa_m_cost", "wa_m_agents", "wa_m_context", "wa_m_rework", "wa_m_usage", "wa_m_permissions", "wa_m_effort"]
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_PRICES = os.path.join(HERE, "..", "catalog", "prices.json")

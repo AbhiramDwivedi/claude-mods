@@ -1,5 +1,5 @@
 {
- "updated": "2026-10-06",
+ "updated": "2026-10-08",
  "practices": [
   {
    "id": "provide-runnable-check",
@@ -44,7 +44,7 @@
   },
   {
    "id": "explicit-verify-instructions",
-   "claim": "Tell Claude in the prompt or CLAUDE.md to verify its own work before finishing.",
+   "claim": "Tell Claude in the prompt or CLAUDE.md to verify its own work before it finishes.",
    "improves": [
     "quality"
    ],
@@ -55,12 +55,12 @@
     "date": "2026-10-06"
    },
    "grade": "anthropic-advice",
-   "models": "opus-4.x",
-   "status": "superseded",
-   "superseded_by": "avoid-verification-boilerplate-opus-5",
+   "models": "any except opus-5",
+   "status": "current",
+   "superseded_by": null,
    "metric": "verification.check_after_last_edit",
-   "check": "Do not recommend adding verification boilerplate to a current-model setup; see the replacing entry.",
-   "notes": "Useful advice on earlier models; the prompting docs now warn it over-triggers on Opus 5."
+   "check": "A gap only when transcripts show changes reported done with no test or build output. Never apply this on Opus 5; see avoid-verification-boilerplate-opus-5.",
+   "notes": "Prompting best practices: 'Ask Claude to self-check… catches errors reliably… Claude Opus 5 is the exception'. The Sonnet 5.5 page says to add a verification paragraph 'If you see changes reported as complete without test or build output in the transcript'. The docs name only Opus 5 as the exception; nobody knows whether that covers Opus 5.5. Date is the fetch date; docs are undated."
   },
   {
    "id": "avoid-verification-boilerplate-opus-5",
@@ -84,6 +84,41 @@
    "notes": "Docs: 'verification instructions carried over… can cause over-verification, adding tokens and latency… remove these instructions'. Thariq Shihipar, 2026-09-29 (x.com/trq212/status/2104983034152063339): 'Smart models need less verification which makes them pareto dominant.'"
   },
   {
+   "id": "review-after-long-unattended-work",
+   "claim": "After a long unattended run, have a fresh subagent review the diff before you count the work done.",
+   "improves": [
+    "quality",
+    "rework"
+   ],
+   "source": {
+    "url": "https://code.claude.com/docs/en/best-practices",
+    "author": "Anthropic",
+    "kind": "docs",
+    "date": "2026-10-08"
+   },
+   "grade": "anthropic-advice",
+   "models": "any except opus-5",
+   "status": "current",
+   "superseded_by": null,
+   "metric": "verification.review_after_edits",
+   "check": "Read sessions with 20+ edits and no human message, and how many had a review after. A gap only when an unreviewed run later needed fixes: corrections or reverts of that work in the transcripts. Skip Opus 5 sessions.",
+   "notes": "Best-practices, 'Add an adversarial review step': 'The longer Claude works unattended, the more an independent check matters before you count the work as done.' The same section warns that a reviewer will report gaps even in sound work; act only on gaps that affect correctness. The Opus 5 prompting page says 'do not use subagents to verify or double-check your own work', so Opus 5 is excluded; nobody knows whether that covers Opus 5.5. Date is the fetch date; docs are undated.",
+   "suggest": [
+    {
+     "name": "/code-review",
+     "kind": "skill",
+     "what": "Reviews the current diff for bugs in a fresh subagent.",
+     "url": "https://code.claude.com/docs/en/code-review"
+    },
+    {
+     "name": "/security-review",
+     "kind": "command",
+     "what": "Reviews your branch's changes for security holes.",
+     "url": "https://code.claude.com/docs/en/commands"
+    }
+   ]
+  },
+  {
    "id": "plan-mode-for-multifile-work",
    "claim": "Use plan mode (explore, plan, then code) for multi-file or uncertain work; skip it if you could describe the diff in one sentence.",
    "improves": [
@@ -94,15 +129,15 @@
     "url": "https://code.claude.com/docs/en/best-practices",
     "author": "Anthropic",
     "kind": "docs",
-    "date": "2026-10-06"
+    "date": "2026-10-08"
    },
    "grade": "anthropic-advice",
    "models": "any",
-   "status": "contested",
-   "superseded_by": null,
+   "status": "superseded",
+   "superseded_by": "auto-mode-over-plan-mode",
    "metric": "practices.usage",
-   "check": "Compare plan-mode use against diff size only if the data allows it. Zero plan-mode use is not a gap on current models: the auto-mode posts argue plan mode is no longer needed.",
-   "notes": "Docs say plan mode 'adds overhead' for small changes. Conflicts with the auto-mode advice below. Expertise study: users make about 70% of planning decisions, correlated with success (correlational)."
+   "check": "Never a gap. Plan-mode use, high or low, describes the person's habits; do not grade it.",
+   "notes": "The docs still recommend it. Best-practices: 'Explore first, then plan, then code'; plan mode 'adds overhead', and 'If you could describe the diff in one sentence, skip the plan.' Costs: 'Use plan mode for complex tasks'. Superseded because newer first-hand staff posts say current models rarely need it. Expertise study: users make about 70% of planning decisions, correlated with success (correlational). Date is the fetch date; docs are undated."
   },
   {
    "id": "plan-mode-most-sessions",
@@ -116,17 +151,17 @@
     "kind": "staff-post",
     "date": "2026-01-31"
    },
-   "grade": "opinion",
+   "grade": "anthropic-staff",
    "models": "opus-4.5",
    "status": "superseded",
    "superseded_by": "auto-mode-over-plan-mode",
    "metric": "practices.usage",
-   "check": "Do not flag low plan-mode use as a gap. Boris and Thariq have since moved away from it.",
+   "check": "Never a gap. Boris and Thariq have since moved away from plan mode.",
    "notes": "Source is secondary (paddo.dev); x.com was not fetched directly for this post. Kept because the later first-hand posts reverse it."
   },
   {
    "id": "auto-mode-over-plan-mode",
-   "claim": "Use auto mode instead of plan mode; current models do not need plan mode.",
+   "claim": "Use auto mode, and plan only when the task needs it; current models rarely need plan mode.",
    "improves": [
     "speed",
     "quality"
@@ -137,13 +172,13 @@
     "kind": "staff-post",
     "date": "2026-05-22"
    },
-   "grade": "opinion",
+   "grade": "anthropic-staff",
    "models": "any",
    "status": "current",
    "superseded_by": null,
    "metric": "practices.usage",
-   "check": "Read permission-mode mix and plan-mode count as description, not grade. Heavy manual approval with no auto mode is the signal worth mentioning, not plan-mode absence.",
-   "notes": "Boris 2026-05-22: 'my #1 tip is: use auto mode'. Boris 2026-06-08 (status/2064034799711588805) gives 'why I use auto mode instead of plan mode'. Thariq 2026-09-23 (x.com/trq212/status/2102813194196758746): 'thinking of killing plan mode… I don't think the models need plan mode anymore'. Opinion, no data."
+   "check": "The plan-mode count describes the person's habits; it does not grade them. Never flag plan-mode use, high or low, as a gap.",
+   "notes": "Boris 2026-05-22: 'my #1 tip is: use auto mode'. Boris 2026-06-08 (status/2064034799711588805) gives 'why I use auto mode instead of plan mode'. Thariq 2026-09-23 (x.com/trq212/status/2102813194196758746): 'thinking of killing plan mode… I don't think the models need plan mode anymore'. These posts are newer than the docs and outweigh them. Staff experience, no data. x.com returns 402, so the quotes were not re-checked. In the docs, plan mode also uses the auto classifier: both are values of one permission-mode setting."
   },
   {
    "id": "specific-prompts",
@@ -167,29 +202,64 @@
    "notes": "Costs doc: vague requests 'trigger broad scanning'. Economic Index (2026-01-15) shows prompt and response sophistication correlate; no causal claim."
   },
   {
+   "id": "respect-task-scope",
+   "claim": "On Opus 5 and Sonnet 5.5, state the task's scope and tell Claude not to add work you did not ask for.",
+   "improves": [
+    "rework",
+    "cost"
+   ],
+   "source": {
+    "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5",
+    "author": "Anthropic",
+    "kind": "docs",
+    "date": "2026-10-08"
+   },
+   "grade": "anthropic-advice",
+   "models": "opus-5, sonnet-5.5",
+   "status": "current",
+   "superseded_by": null,
+   "metric": null,
+   "check": "No metric. Read it only from the sample readers' out_of_scope cause, never from the number of changed files. A gap only when samples show the person rejecting or reverting work they did not ask for.",
+   "notes": "Opus 5 page: the model 'can also expand the scope of a task, adding steps that weren't requested or applying its own judgment about what the task should be.' Sonnet 5.5 page (https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5): it 'tends to add tests, documentation, and small supporting files' unasked, more at higher effort, and 'Most teams will welcome this.' Both pages give a prompt that limits scope. Date is the fetch date; docs are undated."
+  },
+  {
    "id": "keep-claude-md-short",
-   "claim": "Keep CLAUDE.md under about 200 lines and move occasional workflows into skills.",
+   "claim": "Keep CLAUDE.md short: cut every line Claude would not miss, and move occasional workflows into skills.",
    "improves": [
     "quality",
     "cost"
    ],
    "source": {
-    "url": "https://code.claude.com/docs/en/costs",
+    "url": "https://code.claude.com/docs/en/best-practices",
     "author": "Anthropic",
     "kind": "docs",
-    "date": "2026-10-06"
+    "date": "2026-10-08"
    },
    "grade": "anthropic-advice",
    "models": "any",
    "status": "current",
    "superseded_by": null,
    "metric": "context.claude_md",
-   "check": "Compare loaded lines against 200. A long file is a cost and instruction-following risk, not proof of a problem; check for rules Claude then ignored.",
-   "notes": "Docs: 'Bloated CLAUDE.md files cause Claude to ignore your actual instructions!'"
+   "check": "Read loaded lines as a hint. 'Under 200 lines' is a heuristic, not a fail line. A gap only when transcripts show Claude ignoring a rule the file states.",
+   "notes": "Best-practices: 'Would removing this cause Claude to make mistakes? If not, cut it.' and 'Bloated CLAUDE.md files cause Claude to ignore your actual instructions!' The costs doc adds 'Aim to keep CLAUDE.md under 200 lines'. Date is the fetch date; docs are undated.",
+   "suggest": [
+    {
+     "name": "/context",
+     "kind": "command",
+     "what": "Shows what fills the context window and flags memory bloat.",
+     "url": "https://code.claude.com/docs/en/commands"
+    },
+    {
+     "name": "/doctor",
+     "kind": "skill",
+     "what": "Proposes cuts for CLAUDE.md content Claude can derive from the code.",
+     "url": "https://code.claude.com/docs/en/commands"
+    }
+   ]
   },
   {
    "id": "context-files-add-cost-little-gain",
-   "claim": "Repository context files raised inference cost by over 20% and gave little or no success gain in a benchmark.",
+   "claim": "Keep only context-file lines that earn their cost: in a benchmark, LLM-written files raised cost over 20% and developer-written ones gave no significant gain.",
    "improves": [
     "cost"
    ],
@@ -204,12 +274,12 @@
    "status": "current",
    "superseded_by": null,
    "metric": "context.claude_md",
-   "check": "Supports pruning, but the data is SWE-bench-style tasks on Sonnet 4.5-era models. Do not apply the 20% figure to this user's own sessions.",
-   "notes": "Developer-written files added about 4% success on average; for Claude Code with Sonnet 4.5 no gain on the page fetch. Title: Evaluating AGENTS.md."
+   "check": "Supports pruning. The data is SWE-bench-style tasks on Sonnet 4.5-era models; never apply the 20% figure to this person's own sessions.",
+   "notes": "Paper v3 (revised 2026-09-29): developer-written files raised success by 2.4% on average, p=0.21, not significant. The over-20% cost rise is for LLM-generated files. Title: Evaluating AGENTS.md. Figures read through a summarizer, so close but not verbatim."
   },
   {
    "id": "claude-md-add-rule-after-mistake",
-   "claim": "After each correction, tell Claude to update CLAUDE.md so it does not repeat the mistake, and prune it ruthlessly.",
+   "claim": "After a correction, have Claude add a rule to CLAUDE.md so the mistake does not repeat, and prune the file ruthlessly.",
    "improves": [
     "rework"
    ],
@@ -219,13 +289,13 @@
     "kind": "staff-post",
     "date": "2026-01-31"
    },
-   "grade": "opinion",
+   "grade": "anthropic-staff",
    "models": "any",
-   "status": "contested",
+   "status": "current",
    "superseded_by": null,
    "metric": "context.claude_md",
-   "check": "Growth alone is not a gap. Look at whether the file grows without pruning while repeat corrections persist.",
-   "notes": "Boris: 'Ruthlessly edit your CLAUDE.md over time. Keep iterating until Claude's mistake rate measurably drops.' Pulls against the short-file advice and the AGENTS.md data, but his own post also says to prune."
+   "check": "Growth alone is not a gap. A gap only when the same correction repeats across sessions, whether the file grew or not.",
+   "notes": "Boris: 'Ruthlessly edit your CLAUDE.md over time. Keep iterating until Claude's mistake rate measurably drops.' The post also says to prune, so it fits the short-file advice. x.com returns 402, so the quote was not re-checked."
   },
   {
    "id": "clear-between-unrelated-tasks",
@@ -290,24 +360,52 @@
   },
   {
    "id": "course-correct-early",
-   "claim": "Interrupt (Esc) or /rewind early instead of letting a bad trajectory run.",
+   "claim": "Stop Claude with Esc, or /rewind, as soon as it goes off track instead of letting a bad path run.",
    "improves": [
     "rework",
     "cost"
    ],
    "source": {
-    "url": "https://www.anthropic.com/research/measuring-agent-autonomy",
+    "url": "https://code.claude.com/docs/en/best-practices",
     "author": "Anthropic",
-    "kind": "research",
-    "date": "2026-02-18"
+    "kind": "docs",
+    "date": "2026-10-08"
    },
    "grade": "anthropic-advice",
    "models": "any",
    "status": "current",
    "superseded_by": null,
    "metric": "practices.usage",
-   "check": "Read interrupts and rewinds per session. Zero interrupts is not a gap if corrections are rare.",
-   "notes": "Descriptive data: users under 50 sessions interrupt in about 5% of turns, 750+ sessions about 9%. The paper says no oversight style is universally superior."
+   "check": "Read interrupts and rewinds per session. A gap only when samples show Claude running long on a wrong path that the person corrected late. Zero interrupts with few corrections is fine.",
+   "notes": "Best-practices, 'Course-correct early and often': 'Correct Claude as soon as you notice it going off track.' The autonomy paper (anthropic.com/research/measuring-agent-autonomy, 2026-02-18) is descriptive only: users with about 10 sessions interrupt in about 5% of turns, experienced users in about 9%. It says it is 'too early to mandate specific interaction patterns'. Date is the fetch date; docs are undated.",
+   "suggest": [
+    {
+     "name": "/rewind",
+     "kind": "command",
+     "what": "Restores code and conversation to an earlier prompt.",
+     "url": "https://code.claude.com/docs/en/checkpointing"
+    }
+   ]
+  },
+  {
+   "id": "git-baseline-before-risky-work",
+   "claim": "Commit or stash before risky work, because /rewind does not undo Bash file changes or subagent edits.",
+   "improves": [
+    "rework"
+   ],
+   "source": {
+    "url": "https://code.claude.com/docs/en/checkpointing",
+    "author": "Anthropic",
+    "kind": "docs",
+    "date": "2026-10-08"
+   },
+   "grade": "anthropic-advice",
+   "models": "any",
+   "status": "current",
+   "superseded_by": null,
+   "metric": "practices.usage.rewinds_after_untracked_edits",
+   "check": "A gap only when a /rewind followed Bash file changes or subagent edits and no git baseline came before them. Uncommitted work alone is not a gap.",
+   "notes": "Checkpointing: 'Checkpointing does not track files modified by Bash commands.' For subagents: 'rewinding doesn't restore the edits. Use git to revert them.' A foreground forked skill is the one exception. Date is the fetch date; docs are undated."
   },
   {
    "id": "subagents-for-investigation",
@@ -332,7 +430,7 @@
   },
   {
    "id": "subagents-cost-tokens",
-   "claim": "Multi-agent runs use far more tokens (about 15x a chat) and help coding less than research.",
+   "claim": "Multi-agent runs use about 15x the tokens of a chat, so save them for work that splits into parallel parts.",
    "improves": [
     "cost"
    ],
@@ -343,12 +441,12 @@
     "date": "2025-06-13"
    },
    "grade": "measured",
-   "models": "any",
+   "models": "claude-4",
    "status": "current",
    "superseded_by": null,
    "metric": "agents.size",
-   "check": "Use cost.total split main vs subagents and agents.size. The 90.2% gain was on research evals, so do not claim it applies to coding.",
-   "notes": "'multi-agent systems use about 15× more tokens than chats'. Costs doc: agent teams use about 7x more tokens in plan mode."
+   "check": "Use cost.total split main vs subagents and agents.size. The 90.2% gain was on research evals; never claim it for coding.",
+   "notes": "Measured on an Opus 4 and Sonnet 4 research system: 'multi-agent systems use about 15× more tokens than chats'. The post argues, without data, that 'most coding tasks involve fewer truly parallelizable tasks'. The costs doc's 7x figure is for agent teams in plan mode, not subagents."
   },
   {
    "id": "subagent-over-spawning",
@@ -398,7 +496,7 @@
     "speed"
    ],
    "source": {
-    "url": "https://metr.org/notes/2026-02-17-exploratory-transcript-analysis/",
+    "url": "https://metr.org/notes/2026-02-17-exploratory-transcript-analysis-for-estimating-time-savings-from-coding-agents/",
     "author": "METR",
     "kind": "research",
     "date": "2026-02-17"
@@ -413,7 +511,7 @@
   },
   {
    "id": "sonnet-for-most-coding",
-   "claim": "Use Sonnet for most coding and Opus for hard reasoning; unexpectedly high spend usually traces to Opus left as default.",
+   "claim": "Use Sonnet for most coding and save Opus for architecture and multi-step reasoning.",
    "improves": [
     "cost"
    ],
@@ -421,15 +519,15 @@
     "url": "https://code.claude.com/docs/en/costs",
     "author": "Anthropic",
     "kind": "docs",
-    "date": "2026-10-06"
+    "date": "2026-10-08"
    },
    "grade": "anthropic-advice",
    "models": "any",
    "status": "contested",
    "superseded_by": null,
    "metric": "cost.total",
-   "check": "Report model mix and cost by model. Do not call heavy Opus use wrong: Boris's Jan 2026 view (secondary, not fetched first-hand) was Opus with thinking for everything, and neither side shows data.",
-   "notes": "Costs doc: 'Sonnet handles most coding tasks well and costs less than Opus.'"
+   "check": "Report model mix and cost by model. Never call heavy Opus use wrong: Boris's Jan 2026 view, known only second-hand, was Opus with thinking for everything, and neither side shows data. The spend warning applies only on an API or cloud-provider plan.",
+   "notes": "Costs doc: 'Sonnet handles most coding tasks well and costs less than Opus. Reserve Opus for complex architectural decisions or multi-step reasoning.' And: 'Unexpectedly high spend on an API or cloud-provider plan: usually traces back to long sessions that were never cleared or to Opus left as the default model.' Date is the fetch date; docs are undated."
   },
   {
    "id": "effort-for-nontrivial-coding",
@@ -443,17 +541,47 @@
     "kind": "blog",
     "date": "2026-04-23"
    },
-   "grade": "measured",
-   "models": "any",
+   "grade": "anthropic-advice",
+   "models": "opus-4.6, sonnet-4.6",
+   "status": "superseded",
+   "superseded_by": "match-effort-to-task",
+   "metric": null,
+   "check": "Never a gap on current models; see match-effort-to-task.",
+   "notes": "The postmortem covers Sonnet 4.6 and Opus 4.6: medium effort gave 'slightly lower intelligence with significantly less latency for the majority of tasks'. The default moved from high to medium on 2026-03-04 and back on 2026-04-07. The post reverted a default; it did not tell users to keep effort high."
+  },
+  {
+   "id": "match-effort-to-task",
+   "claim": "Match effort to the task: medium for clear feature work, high for bugs and edge cases, xhigh or max only when you have measured a gain.",
+   "improves": [
+    "quality",
+    "cost",
+    "speed"
+   ],
+   "source": {
+    "url": "https://code.claude.com/docs/en/model-config",
+    "author": "Anthropic",
+    "kind": "docs",
+    "date": "2026-10-08"
+   },
+   "grade": "anthropic-advice",
+   "models": "opus-5.5, sonnet-5.5, haiku-5.5, fable-5.1",
    "status": "current",
    "superseded_by": null,
-   "metric": null,
-   "check": "The effort setting is not in the transcripts reliably; use /insights or ask the user. Do not conclude anything from absence.",
-   "notes": "Default change high to medium on 2026-03-04 gave 'slightly lower intelligence with significantly less latency' on internal evals; reverted 2026-04-07. Defaults have changed, so any advice tied to one is dated."
+   "metric": "effort.by_model",
+   "check": "Describe the effort mix by model, with ultrathink and /effort counts. Raise it only as a question when most 5.5 sessions run above medium. Never flag low effort unless transcripts show the failure, such as a change reported done with no check.",
+   "notes": "Model-config: Opus, Sonnet and Haiku 5.5 default to medium; medium 'fits day-to-day engineering work with a clear scope, such as implementing a new feature'; high is for 'Work where verification matters or edge cases are likely, such as fixing a bug in an existing codebase'; max 'may show diminishing returns and is prone to overthinking'. Opus 5.5 prompting page: 'Reserve xhigh and max for work where you've measured a quality gain.' Fable 5.1 starts at high (API effort page). Opus 4.7 defaults to xhigh. Date is the fetch date; docs are undated.",
+   "suggest": [
+    {
+     "name": "/effort",
+     "kind": "command",
+     "what": "Sets or shows the session's effort level.",
+     "url": "https://code.claude.com/docs/en/model-config#adjust-effort-level"
+    }
+   ]
   },
   {
    "id": "no-model-change-mid-session",
-   "claim": "Do not switch model, effort, or the tool set mid-session; hand off to another model via a subagent.",
+   "claim": "Switching model mid-session rebuilds the cache, so weigh that cost before you switch, or hand the work to a subagent on the other model.",
    "improves": [
     "cost"
    ],
@@ -463,17 +591,17 @@
     "kind": "docs",
     "date": "2026-10-06"
    },
-   "grade": "measured",
+   "grade": "anthropic-advice",
    "models": "any",
    "status": "current",
    "superseded_by": null,
    "metric": "cost.cache.by_cause",
-   "check": "Read the model_change row of cost.cache.by_cause. Effort switches no longer break the cache on Opus/Sonnet 5.5 and Fable 5.1 (API/subscription), so check the model before blaming the user.",
-   "notes": "Follows from pricing, not a behavioural finding. Thariq, 2026-04-30 (Prompt caching is everything): switching Opus to Haiku after 100k tokens costs more than staying."
+   "check": "Read the model_change row of cost.cache.by_cause. Look for hidden switches too: a skill's model frontmatter, opusplan, automatic fallback, fast mode. A switch is a cost trade-off, not a ban; flag it only when the rebuild cost more than the cheaper model saved.",
+   "notes": "Follows from pricing, not a measurement. Prompt-caching doc: 'On Opus 5.5, Sonnet 5.5, Haiku 5.5, and Fable 5.1 with an API key or a Claude subscription, changing effort keeps the cache'; Bedrock, Vertex and gateways can differ. Deferred MCP tools do not break the cache. Thariq, 2026-04-30 (Prompt caching is everything): switching Opus to Haiku after 100k tokens costs more than staying. At Opus 5.5 list prices that no longer holds: a cache read on 100k costs $0.02, a Haiku 5.5 5m write $0.0125."
   },
   {
    "id": "keep-cache-warm",
-   "claim": "Do not idle past the cache TTL mid-task; a cold turn costs 12.5x to 20x a warm one.",
+   "claim": "The first turn after the cache expires costs 12.5x to 80x a warm turn, by model, so a pause costs least at the end of a task.",
    "improves": [
     "cost",
     "speed"
@@ -484,13 +612,21 @@
     "kind": "docs",
     "date": "2026-10-06"
    },
-   "grade": "measured",
+   "grade": "anthropic-advice",
    "models": "any",
    "status": "current",
    "superseded_by": null,
    "metric": "cost.cache.by_cause",
-   "check": "Read the idle_over_ttl row, using meta.billing.main_cache_ttl for the right TTL. Breaks after a real task end are normal; only mid-task gaps count.",
-   "notes": "Multipliers: read 0.1x, 5m write 1.25x, 1h write 2x. Main-thread TTL is 1h on a subscription within plan usage, 5m otherwise; subagents 5m by default. Opus 5.5 reads at 0.05x and Fable 5.1 at 0.025x, so the cold/warm ratio is larger there."
+   "check": "Read the idle_over_ttl row of cost.cache.by_cause and cost.cache.waste_pct, using meta.billing.main_cache_ttl for the TTL. The TTL is a cost trade-off, never a reason to rush work or skip breaks. Breaks at a task end are normal; report mid-task gaps and what they cost.",
+   "notes": "Pricing page (https://platform.claude.com/docs/en/about-claude/pricing): cache reads cost 0.1x input, 0.05x on Opus 5.5 and Sonnet 5.5, 0.025x on Fable 5.1; 5m writes 1.25x, 1h writes 2x. So a cold turn costs 12.5x-20x a warm one at 0.1x reads, 25x-40x on Opus and Sonnet 5.5, 50x-80x on Fable 5.1. That is arithmetic, not a measurement. Main-thread TTL is 1h on a subscription within plan usage, 5m on usage credits or by default on an API key; subagents 5m by default.",
+   "suggest": [
+    {
+     "name": "/usage",
+     "kind": "command",
+     "what": "Shows cache misses and flags long context or misses that take 10% or more of usage.",
+     "url": "https://code.claude.com/docs/en/costs#plan-usage-breakdown"
+    }
+   ]
   },
   {
    "id": "rewind-over-compact",
@@ -504,13 +640,13 @@
     "kind": "docs",
     "date": "2026-10-06"
    },
-   "grade": "measured",
+   "grade": "anthropic-advice",
    "models": "any",
    "status": "current",
    "superseded_by": null,
    "metric": "cost.cache.by_cause",
    "check": "Read the compaction row and /rewind use in practices.usage. A compaction that was needed to continue is not waste.",
-   "notes": "/compact on a cold cache 'reprocesses the full history as uncached input'; /rewind keeps an already-cached prefix."
+   "notes": "Documented mechanism, not a measurement. /compact on a cold cache 'reprocesses the full history as uncached input'; /rewind keeps an already-cached prefix."
   },
   {
    "id": "subagent-cold-start-cost",
@@ -524,13 +660,13 @@
     "kind": "docs",
     "date": "2026-10-06"
    },
-   "grade": "measured",
+   "grade": "anthropic-advice",
    "models": "any",
    "status": "current",
    "superseded_by": null,
    "metric": "cost.cache.subagent_start_pct",
    "check": "Read subagent_start_pct and what_if.subagent_ttl_1h. It is structural, so many small subagents cost more than a few large ones; do not call it a user error.",
-   "notes": "A fork does read the parent's cache."
+   "notes": "Documented mechanism, not a measurement. A fork does read the parent's cache."
   },
   {
    "id": "hooks-for-must-always-rules",
@@ -540,18 +676,26 @@
     "cost"
    ],
    "source": {
-    "url": "https://code.claude.com/docs/en/costs",
+    "url": "https://code.claude.com/docs/en/best-practices",
     "author": "Anthropic",
     "kind": "docs",
-    "date": "2026-10-06"
+    "date": "2026-10-08"
    },
    "grade": "anthropic-advice",
    "models": "any",
    "status": "current",
    "superseded_by": null,
    "metric": null,
-   "check": "Hook config is not in transcripts. Oversized tool results or a repeated violation of a CLAUDE.md rule are indirect hints only.",
-   "notes": "Docs: hooks are 'deterministic', CLAUDE.md 'advisory'. The tens-of-thousands-to-hundreds token saving is an illustration, not a measurement."
+   "check": "Hook config is not in transcripts. A gap only when transcripts show Claude breaking the same CLAUDE.md rule more than once; oversized tool results are a weaker hint.",
+   "notes": "Best-practices: 'Unlike CLAUDE.md instructions which are advisory, hooks are deterministic and guarantee the action happens.' The costs doc shows a hook cutting a log read 'from tens of thousands of tokens to hundreds'; an illustration, not a measurement. Date is the fetch date; docs are undated.",
+   "suggest": [
+    {
+     "name": "/hooks",
+     "kind": "command",
+     "what": "Shows your hooks; a hook enforces a rule every time, where CLAUDE.md only asks.",
+     "url": "https://code.claude.com/docs/en/hooks"
+    }
+   ]
   },
   {
    "id": "cli-over-mcp",
@@ -591,12 +735,62 @@
    "status": "current",
    "superseded_by": null,
    "metric": "practices.usage",
-   "check": "Read permission-mode mix. Heavy manual prompting is a time cost, but auto mode is 'not a drop-in replacement for careful human review on high-stakes infrastructure'.",
-   "notes": "Users approve 93% of prompts; classifier has 0.4% false positives and 17% false negatives on real overeager actions."
+   "check": "Since v2.1.283 auto mode is the starting mode, so a session in `default` means the person chose Manual. Describe the permission-mode mix. A gap only when transcripts show long runs of approvals the person clicked through. Auto mode is 'not a drop-in replacement for careful human review on high-stakes infrastructure'.",
+   "notes": "Users approve 93% of prompts; classifier has 0.4% false positives (n=10,000) and 17% false negatives (n=52) on real overeager actions. Best-practices: 'With Claude Code v2.1.283 or later, auto mode is the built-in starting permission mode' for terminal and VS Code sessions."
+  },
+  {
+   "id": "fix-repeat-permission-prompts",
+   "claim": "When the same safe command keeps prompting, allow it once in settings instead of approving it each time.",
+   "improves": [
+    "speed",
+    "oversight"
+   ],
+   "source": {
+    "url": "https://code.claude.com/docs/en/best-practices",
+    "author": "Anthropic",
+    "kind": "docs",
+    "date": "2026-10-08"
+   },
+   "grade": "anthropic-advice",
+   "models": "any",
+   "status": "current",
+   "superseded_by": null,
+   "metric": "permissions.denials",
+   "check": "Triage by command shape; a gap only when the same shape repeats. Repeated read_only commands: suggest /fewer-permission-prompts. Allowed commands denied for how they were written (chained, absolute_path, inline_interpreter such as python -c): report the pattern; the fix is instructions, not more rules. Never suggest blanket interpreter, shell or network allowlists.",
+   "notes": "Best-practices, 'Configure permissions': 'After the tenth approval you're clicking through rather than reviewing.' It advises allowlists for 'specific tools you know are safe, like npm run lint or git commit', and sandboxing. Date is the fetch date; docs are undated.",
+   "suggest": [
+    {
+     "name": "/fewer-permission-prompts",
+     "kind": "skill",
+     "what": "Scans your transcripts for repeated read-only commands and adds them to the project allowlist.",
+     "url": "https://code.claude.com/docs/en/commands"
+    }
+   ]
+  },
+  {
+   "id": "bypass-only-in-isolation",
+   "claim": "Use bypassPermissions only in an isolated container or VM.",
+   "improves": [
+    "oversight",
+    "reliability"
+   ],
+   "source": {
+    "url": "https://code.claude.com/docs/en/permission-modes",
+    "author": "Anthropic",
+    "kind": "docs",
+    "date": "2026-10-08"
+   },
+   "grade": "anthropic-advice",
+   "models": "any",
+   "status": "current",
+   "superseded_by": null,
+   "metric": "practices.usage.permission_modes",
+   "check": "Transcripts cannot show isolation. When bypass sessions appear, name them and ask whether they ran in a container or VM; never call them a gap on the count alone.",
+   "notes": "Permission-modes table: bypassPermissions is best for 'Isolated containers and VMs only'. It 'disables permission prompts and safety checks so tool calls execute immediately, including writes to protected paths.' Date is the fetch date; docs are undated."
   },
   {
    "id": "self-assessment-unreliable",
-   "claim": "People misjudge their own AI productivity, so do not trust a self-reported or transcript-derived time saving.",
+   "claim": "People misjudge their own AI speed-up, so trust only measured time savings with stated methods, never self-reports.",
    "improves": [
     "trust"
    ],
@@ -611,8 +805,8 @@
    "status": "current",
    "superseded_by": null,
    "metric": null,
-   "check": "Never report hours saved. Report process signals only.",
-   "notes": "RCT, 16 developers: forecast 24% faster, believed 20% faster, measured 19% slower (CI +2% to +39%). Claude 3.x era; METR's 2026 re-runs point toward speedup but call the signal unreliable."
+   "check": "Never report hours saved from self-reports or from transcripts. Cite a time saving only from a measured study that states its method; otherwise report process signals.",
+   "notes": "RCT, 16 developers: forecast 24% faster, believed 20% faster, measured 19% slower. Claude 3.x era, and the blog calls its results out of date. Unvalidated self-reports are not evidence; measured time estimates with stated methods are, such as METR's 2026 transcript notes, which METR calls a soft upper bound."
   },
   {
    "id": "output-volume-not-quality",
@@ -636,7 +830,7 @@
   },
   {
    "id": "avoid-shouting-in-prompts",
-   "claim": "Avoid CRITICAL/MUST shouting in prompts and CLAUDE.md; use emphasis on one line at most.",
+   "claim": "Avoid CRITICAL/MUST shouting in prompts and CLAUDE.md; emphasize one line at most.",
    "improves": [
     "quality"
    ],
@@ -647,12 +841,12 @@
     "date": "2026-10-06"
    },
    "grade": "anthropic-advice",
-   "models": "opus-4.5+",
+   "models": "opus-4.5, opus-4.6",
    "status": "current",
    "superseded_by": null,
    "metric": null,
-   "check": "Count of emphasis words in CLAUDE.md is a hint only; a transcript cannot show over-triggering.",
-   "notes": "Docs: dial back aggressive language, it 'may now overtrigger'."
+   "check": "A count of emphasis words in CLAUDE.md is a hint only. A gap only when transcripts show Claude over-applying an emphasized rule.",
+   "notes": "Prompting docs: dial back aggressive language on these models; it 'may now overtrigger'. The one-line advice is on best-practices (https://code.claude.com/docs/en/best-practices): 'add emphasis such as \"IMPORTANT\" to that line alone. If you emphasize many lines, none of them stands out.'"
   }
  ]
 }
