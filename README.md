@@ -8,6 +8,10 @@ The first two each add a dim line above the prompt, with only the warnings in co
 
 [`usage-limits`](plugins/usage-limits) tracks the 5-hour and weekly windows. It shows how much of each you've used, how fast that number is climbing, and when it will hit 100% if that comes before the reset.
 
+Here it is warning me for real: at +64% an hour, the 5-hour window runs out in 57 minutes, long before it resets.
+
+![usage-limits warning: model: Opus · agents: Opus (3, 1 live), Sonnet (1) — ⚠ 5h 39% +64%/h out in 57m · 7d 67% +13%/d (resets 1d22h) · ctx 13% · $6.26 · cache drops 1 (74K)](assets/approaching-limit.png)
+
 [`session-models`](plugins/session-models) tracks the agents in your session: which models they run on, how many are running right now, and how much context each one sends with every request.
 
 [`subagent-limits`](plugins/subagent-limits) acts on that last number. It tells the main agent how to size and split work. When a subagent's context grows large, it calls the subagent in for a pit stop: the agent writes a handoff note, and a fresh agent goes back out with it. Past a hard limit it refuses the subagent's tools.
