@@ -18,7 +18,7 @@ LOG=$LOG_DIR/$TODAY.log
 WT=$(mktemp -d)/wt
 mkdir -p "$LOG_DIR"
 
-fail() { echo "Catalog refresh FAILED: $1 (log: $LOG on omarchy)"; exit 1; }
+fail() { echo "Catalog refresh FAILED: $1 (log: $LOG on $(hostname))"; exit 1; }
 PUSHED=0
 cleanup() {
   git -C "$REPO" worktree remove --force "$WT" >>"$LOG" 2>&1
