@@ -5,9 +5,9 @@ Parsed shape (see CONTRACT.md "Transcript facts" for the rules):
   versions {ver: requests}, modes [[ts, mode]...], compactions [ts...],
   requests [{id, ts, model, ver, inp, cr, cc, cc5, cc1, out, comp, pre, pre_ts, split}],
   humans [{ts, kind: typed|queued|command, text, cmd, tail}],   (main files only)
-  tools [{ts, name, cmd, path, skill}],                          (main files only)
+  tools [{ts, name, cmd, path, skill, desc}],                    (main files: all; subagents: edit tools only)
   agent_calls [{ts, id, model, type}], agent_ids {agentId: tool_use_id},
-  interrupts [ts...], rejections [ts...], tool_errors, sub_meta {toolUseId, agentType, model}
+  interrupts [ts...], rejections [ts...], denials [{ts, kind, tool, cmd, reason}], tool_errors, sub_meta {toolUseId, agentType, model}
 """
 import hashlib
 import json
@@ -16,9 +16,11 @@ import re
 
 from wa_common import parse_ts
 
-PARSER_VERSION = 2
+PARSER_VERSION = 3
 TEXT_MAX = 2000
 CMD_MAX = 300
+DESC_MAX = 120
+REASON = re.compile(r"Reason:\s*\[([^\]]{1,60})\]")
 TAIL_MAX = 600
 
 SKIP_PREFIXES = (
@@ -51,7 +53,8 @@ class _Parser:
         self.p = dict(kind=kind, path=path, session=session, agent_id=agent_id, cwd=None, entrypoint=None,
                       first_ts=None, last_ts=None, bad_lines=0, versions={}, modes=[], compactions=[],
                       requests=[], humans=[], tools=[], agent_calls=[], agent_ids={}, interrupts=[],
-                      rejections=[], tool_errors=0, sub_meta={})
+                      rejections=[], denials=[], tool_errors=0, sub_meta={})
+        self.tool_info = {}  # tool_use id -> (name, command), all threads, for linking denials
         self.sub = kind == "sub"
         self.req_by_id = {}
         self.seen_tools = set()
@@ -152,11 +155,23 @@ class _Parser:
         blocks = [b for b in c if isinstance(b, dict) and b.get("type") == "tool_result"] if isinstance(c, list) else []
         if isinstance(tr, dict) and tr.get("agentId") and blocks:
             p["agent_ids"][tr["agentId"]] = blocks[0].get("tool_use_id")
+        kind = d.get("toolDenialKind")
         for b in blocks:
             if b.get("is_error"):
                 p["tool_errors"] += 1
-                if "doesn't want to proceed" in json.dumps(b.get("content")):
+                text = json.dumps(b.get("content"))
+                if kind == "user-rejected" or (not kind and "doesn't want to proceed" in text):
                     p["rejections"].append(ts)
+            if kind:
+                name, cmd = self.tool_info.get(b.get("tool_use_id"), (None, None))
+                den = dict(ts=ts, kind=kind, tool=name)
+                if cmd:
+                    den["cmd"] = cmd
+                m = REASON.search(json.dumps(b.get("content"))) if kind.startswith("automode") else None
+                if m:
+                    den["reason"] = m.group(1)
+                p["denials"].append(den)
+                kind = None  # one denial per record
         if isinstance(c, list):
             for b in c:
                 if isinstance(b, dict) and b.get("type") == "text" and b.get("text", "").startswith("[Request interrupted"):
@@ -168,15 +183,22 @@ class _Parser:
         if not isinstance(m, dict):
             return
         content = m.get("content")
-        if isinstance(content, list) and not self.sub:
+        if isinstance(content, list):
+            for b in content:
+                if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("id"):
+                    inp = b.get("input") if isinstance(b.get("input"), dict) else {}
+                    self.tool_info[b["id"]] = (b.get("name"), str(inp.get("command", ""))[:CMD_MAX]
+                                               if b.get("name") in SHELL_TOOLS else None)
+        if isinstance(content, list):
             texts = [b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text" and b.get("text")]
-            if texts:
+            if texts and not self.sub:
                 self.tail = texts[-1][-TAIL_MAX:]
             for b in content:
-                if isinstance(b, dict) and b.get("type") == "tool_use":
+                if isinstance(b, dict) and b.get("type") == "tool_use" and (not self.sub or b.get("name") in EDIT_TOOLS):
                     self.tool_use(b, ts)
         u = m.get("usage")
         model = m.get("model")
+        eff = d.get("effort") or d.get("perTurnEffort")
         if not isinstance(u, dict) or model == "<synthetic>":
             return
         rid = m.get("id") or d.get("requestId")
@@ -191,6 +213,8 @@ class _Parser:
             p["requests"].append(r)
             if rid:
                 self.req_by_id[rid] = r
+        if eff and isinstance(eff, str):
+            r["eff"] = eff
         cc = u.get("cache_creation_input_tokens") or 0
         split = u.get("cache_creation")
         if isinstance(split, dict) and ("ephemeral_5m_input_tokens" in split or "ephemeral_1h_input_tokens" in split):
@@ -219,6 +243,7 @@ class _Parser:
         elif name == "Skill":
             t["skill"] = inp.get("skill")
         elif name in AGENT_TOOLS:
+            t["desc"] = str(inp.get("description", ""))[:DESC_MAX]
             self.p["agent_calls"].append(dict(ts=ts, id=tid, model=inp.get("model"), type=inp.get("subagent_type")))
         self.p["tools"].append(t)
 

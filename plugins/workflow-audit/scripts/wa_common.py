@@ -9,7 +9,9 @@ from datetime import datetime, timezone
 # 4: scratchpad paths win over worktree cuts; worktrees cut at the first hidden folder.
 # 5: CLAUDE.md lines include @imports and AGENTS.md; in-repo scratchpad worktrees map to their project.
 # 6: a cleaned-up worktree reads its project root's CLAUDE.md instead of counting as missing.
-METRICS_VERSION = 6
+# 7: tool rejections counted from toolDenialKind; new permissions.denials, effort.by_model, verification.review_after_edits,
+#    practices.usage.rewinds_after_untracked_edits and commands_used.
+METRICS_VERSION = 7
 
 
 def parse_ts(s):
