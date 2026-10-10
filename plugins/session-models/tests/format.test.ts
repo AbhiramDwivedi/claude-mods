@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { agentLabel, biggestContext, crowdAlarm, family, formatModels, liveAgents, setting, tokens } from '../hooks/register'
+import { agentLabel, biggestContext, crowdAlarm, effortLabel, family, formatModels, liveAgents, setting, tokens } from '../hooks/register'
 
 const LIMITS = { liveAgents: 6, context: 300_000 }
 const MIN = 60_000
@@ -18,45 +18,70 @@ test('formats token counts', async () => {
   expect(tokens(1_200_000)).toBe('1.2M')
 })
 
-test('shows the model alone until an agent beyond the main thread runs', async () => {
+test('shows the model alone until an agent beyond the main thread is running', async () => {
   expect(formatModels(opus, {}, new Set(), LIMITS)).toBe('model: Opus')
-  expect(formatModels(opus, { main: { models: [opus], context: 50_000 } }, new Set(), LIMITS)).toBe('model: Opus')
+  expect(formatModels(opus, { main: { model: opus, context: 50_000 } }, new Set(), LIMITS)).toBe('model: Opus')
+  // a finished agent is left out
+  const agents = { main: { model: opus, context: 1 }, a1: { model: sonnet, context: 1, effort: 'low' } }
+  expect(formatModels(opus, agents, new Set(), LIMITS)).toBe('model: Opus')
 })
 
-test('counts agents per model, with the live ones called out', async () => {
+test("shows the main thread's effort once it has made a request", async () => {
+  expect(formatModels(opus, { main: { model: opus, context: 1, effort: 'xhigh' } }, new Set(), LIMITS)).toBe(
+    'model: Opus · effort: xhigh',
+  )
+  expect(effortLabel(32_000)).toBe('32K')
+  // a model without effort shows none
+  expect(formatModels(opus, { main: { model: opus, context: 1 } }, new Set(), LIMITS)).toBe('model: Opus')
+})
+
+test('counts the live agents by model and effort, the main thread included', async () => {
+  const haiku = 'claude-haiku-4-5-20251001'
   const agents = {
-    main: { models: [opus], context: 50_000 },
-    a1: { models: [sonnet], context: 20_000 },
-    a2: { models: [sonnet], context: 20_000 },
-    a3: { models: [opus], context: 20_000 },
-    t1: { models: [opus, 'claude-haiku-4-5-20251001'], context: 20_000 },
+    main: { model: opus, context: 50_000, effort: 'high' },
+    a1: { model: sonnet, context: 20_000, effort: 'low' },
+    a2: { model: sonnet, context: 20_000, effort: 'low' },
+    a3: { model: opus, context: 20_000, effort: 'medium' },
+    a4: { model: opus, context: 20_000, effort: 'medium' },
+    // switched to Haiku, which takes no effort: counted by its latest model only
+    t1: { model: haiku, context: 20_000 },
+    done: { model: opus, context: 20_000, effort: 'max' },
   }
-  const line = formatModels(opus, agents, new Set(['a1']), LIMITS)
-  expect(line).toBe('model: Opus · agents: Opus (3, 1 live), Sonnet (2, 1 live), Haiku (1)')
+  const line = formatModels(opus, agents, new Set(['a1', 'a2', 'a3', 'a4', 't1']), LIMITS)
+  expect(line).toBe('model: Opus · effort: high · agents: Opus (2 medium, 1 high), Sonnet (2 low), Haiku (1) · ⚠ 6 live')
 })
 
-test('says live even when every agent of a model is live', async () => {
-  const agents = { main: { models: [opus], context: 1 }, a1: { models: [opus], context: 1 } }
-  expect(formatModels(opus, agents, new Set(['a1']), LIMITS)).toBe('model: Opus · agents: Opus (2, 2 live)')
+test('marks the agents of a model that went without effort', async () => {
+  const agents = { main: { model: opus, context: 1, effort: 'high' }, a1: { model: opus, context: 1 } }
+  expect(formatModels(opus, agents, new Set(['a1']), LIMITS)).toBe(
+    'model: Opus · effort: high · agents: Opus (1 high, 1 no effort)',
+  )
+})
+
+test('skips an agent recorded before agents kept their latest model', async () => {
+  const agents = { main: { model: opus, context: 1, effort: 'high' }, a1: { context: 1 }, a2: { model: opus, context: 1, effort: 'low' } }
+  expect(formatModels(opus, agents, new Set(['a1', 'a2']), LIMITS)).toBe(
+    'model: Opus · effort: high · agents: Opus (1 high, 1 low)',
+  )
 })
 
 test('treats finished agents as not live, and main as always live', async () => {
-  const agents = { main: { models: [opus], context: 1 }, a1: { models: [opus], context: 1 } }
+  const agents = { main: { model: opus, context: 1 }, a1: { model: opus, context: 1 } }
   expect(liveAgents(agents, new Set())).toEqual(['main'])
 })
 
 test('warns about a crowd of live agents and the biggest live context', async () => {
   // the shape of a runaway session: a dozen background Opus agents near a million tokens each
-  const agents: Record<string, { models: string[]; context: number }> = { main: { models: [opus], context: 80_000 } }
+  const agents: Record<string, { model: string; context: number; effort?: string }> = { main: { model: opus, context: 80_000 } }
   const running = new Set<string>()
   for (let i = 0; i < 12; i++) {
-    agents[`a${i}`] = { models: [opus], context: 800_000 + i * 10_000 }
+    agents[`a${i}`] = { model: opus, context: 800_000 + i * 10_000 }
     running.add(`a${i}`)
   }
-  agents.done = { models: [opus], context: 990_000 }
+  agents.done = { model: opus, context: 990_000 }
   expect(biggestContext(agents, liveAgents(agents, running), LIMITS.context)).toEqual({ id: 'a11', context: 910_000 })
   expect(formatModels(opus, agents, running, LIMITS)).toBe(
-    'model: Opus · agents: Opus (14, 13 live) · ⚠ 13 live · ⚠ ctx 910K',
+    'model: Opus · agents: Opus (13) · ⚠ 13 live · ⚠ ctx 910K',
   )
 })
 
