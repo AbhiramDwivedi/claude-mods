@@ -44,9 +44,14 @@ export function biggestContext(agents: AgentsSeen, live: readonly string[], thre
   return top
 }
 
-// "model: Opus · agents: Opus (29, 13 live), Sonnet (4) · ⚠ 14 live · ⚠ ctx 955K"
-// the agents part appears once anything beyond the main thread has run;
-// an agent that used two families counts under each
+// a level as named, an integer budget as a token count: high, 32K
+export function effortLabel(effort: string | number): string {
+  return typeof effort === 'number' ? tokens(effort) : effort
+}
+
+// "model: Opus · effort: high · agents: Opus (12 medium, 1 high), Sonnet (2 low) · ⚠ 15 live · ⚠ ctx 955K"
+// the agents part counts the live ones, main included, by the model and effort of each
+// one's latest request; it appears while anything beyond the main thread is running
 export function formatModels(
   current: string,
   agents: AgentsSeen,
@@ -64,18 +69,32 @@ export function modelParts(
   limits: Thresholds,
 ): string[] {
   const parts = [`model: ${family(current)}`]
+  // the main thread's latest request; unknown until it has made one
+  const effort = agents.main?.effort
+  if (effort !== undefined) parts.push(`effort: ${effortLabel(effort)}`)
   const live = new Set(liveAgents(agents, running))
-  if (Object.keys(agents).some(id => id !== 'main')) {
-    const counts = new Map<string, { total: number; live: number }>()
-    for (const [id, seen] of Object.entries(agents)) {
-      for (const f of new Set(seen.models.map(family))) {
-        const c = counts.get(f) ?? { total: 0, live: 0 }
-        counts.set(f, { total: c.total + 1, live: c.live + (live.has(id) ? 1 : 0) })
-      }
+  if (live.size > 1) {
+    // family -> effort -> count; '' for a model that takes no effort
+    const counts = new Map<string, Map<string, number>>()
+    for (const id of live) {
+      const seen = agents[id]
+      // state written before agents kept their latest model
+      if (seen?.model === undefined) continue
+      const f = family(seen.model)
+      const efforts = counts.get(f) ?? new Map<string, number>()
+      const e = seen.effort === undefined ? '' : effortLabel(seen.effort)
+      efforts.set(e, (efforts.get(e) ?? 0) + 1)
+      counts.set(f, efforts)
     }
+    const total = (efforts: Map<string, number>) => [...efforts.values()].reduce((a, b) => a + b, 0)
     const list = [...counts]
-      .sort((a, b) => b[1].live - a[1].live || b[1].total - a[1].total)
-      .map(([f, c]) => (c.live > 0 ? `${f} (${c.total}, ${c.live} live)` : `${f} (${c.total})`))
+      .sort((a, b) => total(b[1]) - total(a[1]))
+      .map(([f, efforts]) => {
+        const byEffort = [...efforts]
+          .sort((a, b) => b[1] - a[1])
+          .map(([e, n]) => (e !== '' ? `${n} ${e}` : efforts.size > 1 ? `${n} no effort` : `${n}`))
+        return `${f} (${byEffort.join(', ')})`
+      })
       .join(', ')
     parts.push(`agents: ${list}`)
   }
@@ -203,15 +222,12 @@ export const register: Register = (on, options) => {
     const model = usage.model
     const id = e.agentId ?? 'main'
     const context = usage.input_tokens + usage.cache_read_input_tokens + usage.cache_creation_input_tokens
-    // a new agent or model redraws at once; otherwise the throttle decides
-    const isNew = !(await read($, agentsSeen))[id]?.models.includes(model)
-    await update($, agentsSeen, agents => {
-      const seen = agents[id] ?? { models: [], context: 0 }
-      return {
-        ...agents,
-        [id]: { models: seen.models.includes(model) ? seen.models : [...seen.models, model], context },
-      }
-    })
+    // absent for a model that takes no effort
+    const effort = e.effort
+    // a new agent, model or effort redraws at once; otherwise the throttle decides
+    const before = (await read($, agentsSeen))[id]
+    const isNew = before?.model !== model || before.effort !== effort
+    await update($, agentsSeen, agents => ({ ...agents, [id]: { model, context, effort } }))
     if (isNew || (await $.clock.now()) - lastRefreshAt >= REFRESH_MIN_MS) await refresh($, limits)
     return result
   })

@@ -93,9 +93,11 @@ Claude Code also has a built-in mod worth turning on alongside these. "You shoul
 
 ## Reading the agents line
 
-`model: Opus` is the main thread's model. Until a subagent runs, that's all the line shows.
+`model: Opus` is the main thread's model. Until a subagent is running, that and its effort are all the line shows.
 
-`agents: Opus (14, 13 live), Sonnet (2)` counts every agent the session has run, by model: the main thread, subagents and teammates that run inside the session. Fourteen have used Opus and 13 of those are running now. An agent that switched models counts under each. An agent started without a model runs on the main thread's model, so if your main thread's model shows up here when you meant the work to go to cheaper ones, that's the sign.
+`effort: high` is the effort the main thread's latest request asked for: a level, or a token budget such as `32K`. It appears after the first request, follows `/effort` at the next one, and is absent for a model that takes no effort.
+
+`agents: Opus (12 medium, 1 high), Sonnet (2 low)` counts the agents running now: the main thread, subagents and teammates that run inside the session. Each counts once, under the model and effort of its latest request. Finished agents drop out. An agent on a model without effort counts as a bare number, such as `Haiku (2)`. An agent started without a model runs on the main thread's model, so if your main thread's model shows up here when you meant the work to go to cheaper ones, that's the sign.
 
 `⚠ 14 live` appears while at least `liveAgentsWarn` agents are running. The toast fires once. It fires again only after the count drops 2 below the threshold, and never twice within 10 minutes.
 

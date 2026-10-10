@@ -12,7 +12,7 @@
     },
     {
       "name": "session-models",
-      "description": "Shows the main model and how many agents (main thread, subagents, in-process teammates) have used each model",
+      "description": "Shows the main model and its effort, and the live agents (main thread, subagents, in-process teammates) by model and effort",
       "source": "./plugins/session-models",
       "category": "productivity"
     },

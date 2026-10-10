@@ -58,13 +58,14 @@ function world(on: On, surfaces: readonly ('terminal' | 'desktop' | 'vscode' | '
 }
 
 // one model request of an agent (main when `agentId` is absent), read to its end
-async function step($: Engine, agentId?: string) {
+async function step($: Engine, agentId?: string, effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max' | number) {
   const stream = $.turn.step({
     turnId: 't1',
     index: 0,
     model: opus,
     messageCount: 3,
     ...(agentId === undefined ? {} : { agentId }),
+    ...(effort === undefined ? {} : { effort }),
   })
   for await (const _ of stream) {
     // drained: the result settles once the stream is read to its end
@@ -83,7 +84,7 @@ test('draws the line dim in the band, the crowd and big-context warnings in the 
     const texts = await ui.findAll({ type: 'Text' })
     expect(texts.filter(t => t.props.color === 'warning').map(t => t.text)).toEqual(['⚠ 2 live', '⚠ ctx 350K'])
     expect(texts.filter(t => t.props.dimColor === true).map(t => t.text)).toEqual([
-      'model: Opus · agents: Opus (2, 2 live) · ',
+      'model: Opus · agents: Opus (2) · ',
       ' · ',
     ])
     // what was drawn beneath stays, above this plugin's line
@@ -101,6 +102,17 @@ test('draws a calm session all dim', async ($, on) => {
   const texts = await ui.findAll({ type: 'Text' })
   expect(texts.filter(t => t.props.color === 'warning')).toEqual([])
   expect(texts.filter(t => t.props.dimColor === true).map(t => t.text)).toEqual(['model: Opus'])
+})
+
+test("shows the main thread's effort, and follows a change at its next request", async ($, on) => {
+  const seen = world(on, ['mobile'], 50_000)
+  await step($, undefined, 'high')
+  expect(seen.status).toBe('model: Opus · effort: high')
+  // a subagent's effort is its own, not the session's
+  await step($, 'a1', 'low')
+  expect(seen.status).toBe('model: Opus · effort: high · agents: Opus (1 high, 1 low)')
+  await step($, undefined, 'max')
+  expect(seen.status).toBe('model: Opus · effort: max · agents: Opus (1 max, 1 low)')
 })
 
 test("keeps another plugin's band line beside its own", {
@@ -133,7 +145,7 @@ test('falls back to the status line only where no surface has a band', CROWD, as
   const seen = world(on, ['mobile'], 350_000)
   await step($)
   await step($, 'a1')
-  expect(seen.status).toBe('model: Opus · agents: Opus (2, 2 live) · ⚠ 2 live · ⚠ ctx 350K')
+  expect(seen.status).toBe('model: Opus · agents: Opus (2) · ⚠ 2 live · ⚠ ctx 350K')
 })
 
 test('keeps the terminal quiet when a phone is attached beside it', CROWD, async ($, on) => {
